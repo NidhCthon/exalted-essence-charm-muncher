@@ -1,0 +1,13 @@
+# Extracted book text and generated packs - copyrighted. NEVER commit.
+# Note: gitignore has no inline comments; every comment gets its own line.
+data/*.raw.json
+data/packs/
+# generated: module.json manifest plus the LevelDB compendium packs
+module/
+*.zip
+
+.venv/
+node_modules/
+__pycache__/
+*.pyc
+*.pdf

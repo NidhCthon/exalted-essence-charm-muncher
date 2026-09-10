@@ -1,0 +1,14 @@
+{
+  "name": "foundry-exalted-charms",
+  "version": "1.0.0",
+  "description": "Generates Foundry VTT compendium packs of Exalted Essence Charms, so they can be browsed and dragged onto character sheets instead of being typed in by hand.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "dependencies": {
+    "@foundryvtt/foundryvtt-cli": "^3.0.4"
+  }
+}
