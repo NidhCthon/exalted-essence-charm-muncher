@@ -47,7 +47,7 @@ type and Will cost. Everything uses the enum values from the system's own
 |---|---|---|
 | Exalted Essence (core) | 495 charms, 35 spells, 15 rituals | `ESSENCE_CORE_PDF` |
 | Pillars of Creation | 387 charms, 28 spells, 13 rituals | `ESSENCE_PILLARS_PDF` |
-| Player's Guide (draft manuscript) | 879 charms | `ESSENCE_PLAYERSGUIDE_PDF` |
+| Player's Guide (draft manuscript) | 879 charms, no sorcery | `ESSENCE_PLAYERSGUIDE_PDF` |
 
 Books are optional — supply only what you own. The Player's Guide entry is the
 **draft manuscript**, whose charms may not match the published book.
@@ -146,6 +146,20 @@ and 50 of 54 named prerequisites resolve — the 4 that do not are not charms
 (`Familiar Merit`, `Any Excellency`, and similar).
 
 That check is what caught the sidebar truncation bug.
+
+### Which books hold sorcery
+
+Only the core rulebook and Pillars of Creation. The Player's Guide has no
+spells or shaping rituals at all, which is worth stating because its absence
+looks like a gap in this tool rather than in the book. Three checks over its
+full text, not just its headings, agree:
+
+- no `First/Second/Third Circle Spells` heading anywhere in its 378 pages;
+- no `Spend N Will`, and every spell in Essence costs Will;
+- no mention of a shaping ritual.
+
+Its twenty-odd uses of the word "spell" are all prose inside Charms and
+fiction, and its ten chapters are one per Exalt type with no sorcery chapter.
 
 ## Layout
 
