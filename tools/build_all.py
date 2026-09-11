@@ -21,6 +21,7 @@ EXTRACTORS = [
     ("extract.py", "core", "core rulebook charms"),
     ("extract_sorcery.py", "core", "core spells and shaping rituals"),
     ("extract_pillars.py", "pillars", "Pillars of Creation charms"),
+    ("extract_sorcery_pillars.py", "pillars", "Pillars spells and shaping rituals"),
     ("extract_pg.py", "playersguide", "Player's Guide charms"),
 ]
 BUILDERS = [

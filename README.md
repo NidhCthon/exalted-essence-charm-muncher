@@ -13,7 +13,7 @@ Targets the [Exalted Essence system](https://github.com/Aliharu/Foundry-ExEss)
 
 ## What you get
 
-With all three books, 1,811 items across 22 packs:
+With all three books, 1,852 items across 22 packs:
 
 | Pack | Items |
 |---|---|
@@ -23,10 +23,10 @@ With all three books, 1,811 items across 22 packs:
 | Martial Arts | 99 |
 | Exigent, Architect, Sovereign | 52–67 each |
 | Evocations & Hearthstones | 40 |
-| Sorcery & Necromancy Spells | 35 |
+| Sorcery & Necromancy Spells | 63 |
 | Sidereal Martial Arts | 31 |
 | Strawmaiden Janest | 25 |
-| Shaping Rituals | 15 |
+| Shaping Rituals | 28 |
 | Dragon King, Dream-Souled, Umbral | 6 each |
 
 Charms carry ability, requirement, Essence, mote/anima/Power cost, prerequisite
@@ -46,7 +46,7 @@ type and Will cost. Everything uses the enum values from the system's own
 | Book | Content | Env var |
 |---|---|---|
 | Exalted Essence (core) | 495 charms, 35 spells, 15 rituals | `ESSENCE_CORE_PDF` |
-| Pillars of Creation | 387 charms | `ESSENCE_PILLARS_PDF` |
+| Pillars of Creation | 387 charms, 28 spells, 13 rituals | `ESSENCE_PILLARS_PDF` |
 | Player's Guide (draft manuscript) | 879 charms | `ESSENCE_PLAYERSGUIDE_PDF` |
 
 Books are optional — supply only what you own. The Player's Guide entry is the
@@ -104,6 +104,13 @@ so the charm rule cannot see them. The First/Second/Third circle headings cycle
 three times, and that reset is the only marker separating universal, sorcery
 and necromancy spells.
 
+**Pillars marks its circles differently.** The core book uses clean 13.9pt
+circle headings; Pillars sets them at 17.8pt and usually welds them onto the
+end of the preceding paragraph ("...usable by both sorcerers and
+necromancers.First Circle Spells"). Blocks are split at the marker, because the
+text before it belongs to the previous spell. Missing that is how 41 Pillars
+sorcery entries went unnoticed at first.
+
 **The Player's Guide is inconsistent with itself.** Four of its chapters put
 the prerequisite in the same block as the charm name; the rest use separate
 blocks. It also splits 31 charms across a page boundary, name on one page and
@@ -147,7 +154,9 @@ tools/
   books.py            book registry, PDF resolution, edition fingerprints
   extract.py          core rulebook charms; shared column/banner/sidebar logic
   extract_sorcery.py  core spells and shaping rituals
-  extract_pillars.py  Pillars of Creation (reuses the core extractor)
+  extract_pillars.py  Pillars of Creation charms (reuses the core extractor)
+  extract_sorcery_pillars.py
+                      Pillars spells and shaping rituals
   extract_pg.py       Player's Guide (single-column manuscript)
   build_items.py      charms  -> Foundry Item documents
   build_sorcery.py    spells and rituals -> Foundry Item documents

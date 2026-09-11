@@ -3,6 +3,10 @@
 Runs after build_items.py, which clears data/packs/ - this only adds its own
 two directories, so the order in the README matters.
 
+Both books' sorcery chapters feed the same two packs. Core ids stay
+unnamespaced so already-published packs keep them; supplement ids are
+namespaced by book and page, because names are not unique across books.
+
 The two schemas are much smaller than the charm one. A spell carries circle,
 spelltype and a numeric Will cost; a ritual carries only a description and a
 Will figure.
@@ -15,17 +19,20 @@ from pathlib import Path
 from build_items import doc_id, to_html
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "data" / "sorcery.raw.json"
 OUT = ROOT / "data" / "packs"
+
+SOURCES = [
+    ("core", ROOT / "data" / "sorcery.raw.json"),
+    ("pillars", ROOT / "data" / "sorcery_pillars.raw.json"),
+]
 
 WILL_RE = re.compile(r"\bSpend\s+(\d+)\s+Will\b", re.I)
 RITUAL_WILL_RE = re.compile(r"\b(?:gain|generates?|grants?)\s+(\d+)\s+Will\b", re.I)
 
 
-def build_spell(entry):
-    identifier = doc_id(entry["name"])
-    body = " ".join(entry["body"])
-    match = WILL_RE.search(body)
+def build_spell(entry, book):
+    identifier = doc_id(entry["name"], book, None, entry.get("page"))
+    match = WILL_RE.search(" ".join(entry["body"]))
     return {
         "_id": identifier,
         "_key": "!items!{}".format(identifier),
@@ -55,8 +62,8 @@ def build_spell(entry):
     }
 
 
-def build_ritual(entry):
-    identifier = doc_id(entry["name"])
+def build_ritual(entry, book):
+    identifier = doc_id(entry["name"], book, None, entry.get("page"))
     match = RITUAL_WILL_RE.search(" ".join(entry["body"]))
     return {
         "_id": identifier,
@@ -78,13 +85,18 @@ def build_ritual(entry):
 
 
 def main():
-    entries = json.loads(SRC.read_text(encoding="utf-8"))
     packs = {"sorcery-spells": [], "shaping-rituals": []}
-    for entry in entries:
-        if entry["kind"] == "spell":
-            packs["sorcery-spells"].append(build_spell(entry))
-        else:
-            packs["shaping-rituals"].append(build_ritual(entry))
+    seen_books = []
+    for book, path in SOURCES:
+        if not path.exists():
+            print("  skipping missing source: {}".format(path.name))
+            continue
+        seen_books.append(book)
+        for entry in json.loads(path.read_text(encoding="utf-8")):
+            if entry["kind"] == "spell":
+                packs["sorcery-spells"].append(build_spell(entry, book))
+            else:
+                packs["shaping-rituals"].append(build_ritual(entry, book))
 
     for name, items in packs.items():
         directory = OUT / name
@@ -98,7 +110,11 @@ def main():
         print("  {:4d}  {}".format(len(items), name))
 
     spells = packs["sorcery-spells"]
+    every = spells + packs["shaping-rituals"]
     print()
+    print("books included : {}".format(", ".join(seen_books)))
+    print("ids unique     : {}".format(
+        len({i["_id"] for i in every}) == len(every)))
     print("spell circles  : {}".format(
         dict(Counter(i["system"]["circle"] for i in spells))))
     print("spell types    : {}".format(
