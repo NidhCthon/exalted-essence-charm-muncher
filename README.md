@@ -9,7 +9,7 @@ Targets the [Exalted Essence system](https://github.com/Aliharu/Foundry-ExEss)
 
 > **This tool contains no game text.** It reads a PDF you supply. The packs it
 > builds on your machine are Onyx Path Publishing's copyrighted text — they are
-> for your own table, and must not be redistributed. See [LICENSE](LICENSE).
+> for your own table, and must not be redistributed. See [NOTICE](NOTICE).
 
 ## What you get
 
