@@ -31,6 +31,9 @@ BUILDERS = [
     ("build_antagonists.py", "map antagonists to Foundry Actors"),
     ("build_artifacts.py", "map artifacts to Foundry weapon and armor Items"),
     ("build_hearthstones.py", "map hearthstones to Foundry merit Items"),
+    # After the artifacts: it reads their category tables and tag
+    # vocabulary rather than keeping a second copy.
+    ("build_equipment.py", "map basic equipment to Foundry Items"),
     ("build_packs.py", "compile LevelDB packs and the manifest"),
 ]
 
@@ -40,6 +43,7 @@ MULTI_BOOK = [
      "antagonists from every book"),
     ("extract_artifacts.py", ("core", "pillars"), "artifacts"),
     ("extract_hearthstones.py", ("core", "pillars"), "hearthstones"),
+    ("extract_equipment.py", ("core",), "basic equipment"),
 ]
 
 ENV_VARS = {

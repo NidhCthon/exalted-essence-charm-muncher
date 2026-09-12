@@ -101,7 +101,7 @@ FOOTER_RE = re.compile(r"CHAPTER [A-Z]+:|Mortals and Exalted|Gods and Monsters"
                        r"|Exalted Antagonists|Strange Beasts", re.I)
 
 
-def spans(doc, first, last, banner_min):
+def spans(doc, first, last, banner_min, with_font=False):
     """Every span in reading order: left column, then right, then next page.
 
     Except that a centred section banner straddles both columns and divides
@@ -151,7 +151,13 @@ def spans(doc, first, last, banner_min):
                     # Carry the hyphen through for join_spans() to close up.
                     if raw.rstrip().endswith(SOFT):
                         text += SOFT
-                    yield pno + 1, round(sp["size"], 1), text
+                    # The equipment chapter tells a name from its tags by
+                    # font rather than by size, so that is offered too - but
+                    # only on request, to leave the common shape alone.
+                    if with_font:
+                        yield pno + 1, round(sp["size"], 1), text, sp["font"]
+                    else:
+                        yield pno + 1, round(sp["size"], 1), text
 
 
 def stat_block_of(text):
