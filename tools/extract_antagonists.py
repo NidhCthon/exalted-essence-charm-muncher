@@ -4,11 +4,11 @@ Antagonists are Actors, not Items, and their blocks are laid out unlike
 anything the charm extractor handles:
 
 * An antagonist's name is a 17.8pt span welded onto the end of the previous
-  paragraph - "Weapon: Soulsteel Goremaul (...).Champion" - and a long name
+  paragraph - "Weapon: <weapon> (...).<name>" - and a long name
   wraps across several spans. Working at block level buries every name, so
   this reads spans and joins consecutive large ones.
-* Stat lines run together without separators: "Health Levels: 5Resolve:
-  3Defense: 5Hardness: 3Soak: 3". They are split on the known label set
+* Stat lines run together without separators: "<label>: <n><label>:
+  <n><label>: <n><label>: <n>". They are split on the known label set
   instead of on punctuation.
 * "Variant:" entries are deltas on the parent ("increase pools by two"), not
   stat blocks. Each is kept as text on its parent rather than invented as a
@@ -46,8 +46,8 @@ VARIANT_SIZE = (13.5, 14.3)
 NUM_LABELS = ("Health Levels", "Resolve", "Defense", "Defence", "Hardness",
               "Soak", "Essence", "Size", "Drill", "Command")
 NUM_RE = re.compile(r"\b(" + "|".join(NUM_LABELS) + r")\s*:?\s*(\d+)", re.I)
-# Named antagonists print "Primary Pool (9): Athletics"; the template blocks
-# in sidebars print "Primary Pool: 6;" instead. Both forms, or the templates
+# Named antagonists print the parenthesised form; the template blocks
+# in sidebars print the colon form instead. Both forms, or the templates
 # import with no pools at all.
 POOL_RE = re.compile(
     r"\b(Primary|Secondary|Tertiary)\s+Pool\s*[:(]?\s*(\d+)\)?\s*:?\s*", re.I)
@@ -153,9 +153,10 @@ def cut_at_battle_group_table(spans_seen):
     """Stop a stat line where a battle group's stat table begins.
 
     Battle groups print their stats as a table: the labels on one row, the
-    numbers on the next. Read as a run of spans that becomes "... DRILL SIZE
-    1 10 3", so SIZE takes the first number of the number row - and when the
-    table sits beside another antagonist, that number lands on them.
+    numbers on the next. Read as a run of spans that becomes a label row
+    followed by a number row, so the last label takes the first number of
+    that row - and when the table sits beside another antagonist, that
+    number lands on them.
 
     A wrapped "ATTACKS AND QUALITIES" heading can leave one bare label span on
     its own, so a table is only called where two run together. Everything from
@@ -175,7 +176,7 @@ TEMPLATE_HEAD = re.compile(r"^[A-Z][A-Z' -]{3,40}$")
 def heads_a_stat_block(stream, index):
     """True when an all-caps span is a stat block's heading.
 
-    Template blocks in sidebars - COMMON ANIMAL, DANGEROUS ANIMAL - are headed
+    Template blocks in sidebars - the two animal templates - are headed
     at stat size rather than name size, so nothing marks them as names and two
     templates merge into one entry. What separates such a heading from
     "ATTACKS AND QUALITIES" or a table's label row is simply what follows it:

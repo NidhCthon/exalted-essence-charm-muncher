@@ -14,52 +14,53 @@ page, so a legitimate continuation looked like an invented number.
 Dumping the raw spans (`extract_antagonists.py --dump NAME`) showed three
 separate causes:
 
-1. **Doubled sidebar boxes.** Several commanders have a battle group - their
-   warship or warband - boxed out beside them. These boxes are drawn twice,
-   span for span, the way sidebars are throughout these books, and they land
-   in the middle of the host's stat spans. The box's `Size` was read as the
-   commander's, and its prose was spliced into the middle of the commander's
-   qualities. Fixed by `split_doubled_sidebar()`, which drops spans that
-   repeat their neighbour and keeps one copy as the box's own text. Dropping
-   exactly those spans also rejoins the host's prose across the interruption.
+1. **Doubled sidebar boxes.** Several commanders have a battle group boxed
+   out beside them, with its own Size, Drill, Commander and Qualities. These
+   boxes are drawn twice, span for span, the way sidebars are throughout
+   these books, and they land in the middle of the host's stat spans. The
+   box's Size was read as the commander's, and its prose was spliced into the
+   middle of the commander's qualities. Fixed by `split_doubled_sidebar()`,
+   which drops spans that repeat their neighbour and keeps one copy as the
+   box's own text. Dropping exactly those spans also rejoins the host's prose
+   across the interruption.
 
 2. **Battle group tables.** Labels on one row, numbers on the next, which
-   reads as `... DRILL SIZE 1 10 3`, so `SIZE` takes the first number of the
-   number row - and when the table sits beside another antagonist, that
-   number lands on them. Fixed by `cut_at_battle_group_table()`.
+   reads as a label row followed by a number row, so the last label takes the
+   first number of the number row - and when the table sits beside another
+   antagonist, that number lands on them. Fixed by
+   `cut_at_battle_group_table()`.
 
 3. **Template blocks headed at stat size.** The two animal templates in the
-   core book are headed `COMMON ANIMAL` / `DANGEROUS ANIMAL` at stat size
-   rather than name size, so nothing marked them as names and both merged
-   into one entry. This one was the original hypothesis, and it was real -
-   just not on any of the entries first checked. Fixed by
-   `heads_a_stat_block()`, which treats an all-caps span as a name when the
-   span after it opens a pool. They now import as two usable templates.
+   core book are headed at stat size rather than name size, so nothing marked
+   them as names and both merged into one entry. This one was the original
+   hypothesis, and it was real - just not on any of the entries first checked.
+   Fixed by `heads_a_stat_block()`, which treats an all-caps span as a name
+   when the span after it opens a pool. They now import as two usable
+   templates.
 
 `parse_stats()`'s first-match-wins rule was never the problem and has not
-changed. It is what correctly keeps a printed `Defense: 0 (see Perfect
-Pacifist, below)` instead of a `Defense 2` mentioned later in that
-antagonist's prose.
+changed. It is what correctly keeps a defensive stat printed as zero with a
+parenthetical pointing at the trait that explains it, rather than a value for
+the same trait mentioned later in that antagonist's prose.
 
-`POOL_RE` also now accepts `Primary Pool: 6;` alongside `Primary Pool (6):`,
-without which the template blocks imported with no pools at all.
+`POOL_RE` also now accepts the template blocks' pool format alongside the one
+named antagonists use, without which the templates imported with no pools.
 
 ## State
 
 59 actors, verification clean apart from one known gap. Previously 58; the
-merged `Creating Animals` entry became the two templates, and nothing else
-changed count.
+merged animal-template entry became two templates, and nothing else changed
+count.
 
-Spot-checked against the book and correct field for field: Yvayn (p180),
-Dukantha (p189), Duretti (p191) - the three that first exposed the bug.
+Three entries on Pillars pp180-191 - the ones that first exposed the bug -
+were spot-checked against the book and are correct field for field.
 
 ## The one remaining gap
 
-`Camutilix` (Pillars p192) imports its pools but no defensive stats, and the
-verifier reports it as INCOMPLETE. It is a warship whose stats are printed as
-a battle group table, so this is the same table limitation noted below rather
-than a new fault. Its numbers need entering by hand, or the table parser
-below needs writing.
+One Pillars entry (p192) imports its pools but no defensive stats, and the
+verifier reports it as INCOMPLETE. Its stats are printed as a battle group
+table, so this is the table limitation noted below rather than a new fault.
+Enter its numbers by hand, or write the table parser.
 
 ## Verification
 
@@ -87,12 +88,14 @@ Exit code 1 on any finding, so it can gate a rebuild.
   somewhere else. It becomes correct on its own once the tables are parsed.
 - The Storyteller's Guide draft's antagonists are set on a different type
   scale and need their own pass.
-- The pack has not been deployed to the server.
 
 ## Traps
 
-- **Never commit book text.** Verify with `git check-ignore -v` and a
-  clone-and-grep, not by reading `.gitignore`.
+- **Never commit book text.** That means no names, no printed values, and no
+  quoted lines, in code comments and notes as much as in data. Verify with
+  `git check-ignore -v` and a clone-and-grep, not by reading `.gitignore` -
+  and control-test the grep, because a probe that silently matches nothing
+  reads exactly like a clean result.
 - **Do not put Python containing regex escapes in a bash heredoc.** `\b` was
   silently turned into a literal backspace control character, every pattern
   matched nothing, and the extractor returned zero entries with no error.

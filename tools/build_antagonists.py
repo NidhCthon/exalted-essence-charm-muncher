@@ -3,8 +3,8 @@
 The system's NPC model lines up with the book's format almost field for field,
 which is what makes this worth doing at all:
 
-    pools.primary.value / .actions   <-  "Primary Pool (9): Athletics and Combat"
-    health.levels                    <-  "Health Levels: 5"
+    pools.primary.value / .actions   <-  "Primary Pool (<n>): <actions>"
+    health.levels                    <-  "Health Levels: <n>"
     defense / soak / hardness / resolve / essence
     battlegroup / size / drill / commandbonus
     qualities                        <-  a plain string, so no linking needed

@@ -119,7 +119,7 @@ def doc_id(name, book=None, section=None, page=None):
 def parse_prerequisite(text):
     """Split a prerequisite line into ability/rank, Essence, and named charms.
 
-    Handles "Force 4", "Athletics 5, Essence 3", "Force 3 or Fortitude 3",
+    Handles a single trait and value, a comma-separated list of them, an
     "Grand Eruption, Sagacity 4", and "None".
     """
     ability, requirement, essence, charms = None, 0, 0, []

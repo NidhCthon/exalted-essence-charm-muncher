@@ -6,7 +6,7 @@ fails in both directions: a stat block that continues onto the next page looks
 like invented numbers, and a sidebar boxed out beside the antagonist supplies
 numbers that are on the page but belong to something else.
 
-So this checks three sharper things instead:
+So this checks four sharper things instead:
 
 * MERGED    two stat blocks run together, which shows up as the same label
             appearing twice in one stat line with different numbers. This is
@@ -16,6 +16,9 @@ So this checks three sharper things instead:
 * SIZE      Size on an entry that is not a battle group. Size is printed by
             battle groups, so on anyone else it came from somewhere it
             should not have.
+* INCOMPLETE pools imported but no defensive stats. Wrong numbers are the
+            danger and missing ones are merely useless, but they look
+            identical on a character sheet.
 
 Exit codes: 0 clean, 1 something to look at.
 """
@@ -42,7 +45,7 @@ def stat_block_only(statline):
     """The stat line up to where the prose starts.
 
     Past that point a trait named with a number is ordinary text - an
-    evocation's "(Eclipse OK, Essence 2)" prerequisite, say - and not a second
+    evocation prerequisite naming a trait and a value, say - and not a second
     stat block. parse_stats() already relies on the block coming first; this
     check has to agree with it or it reports noise.
     """

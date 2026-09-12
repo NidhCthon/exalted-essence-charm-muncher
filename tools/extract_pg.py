@@ -94,7 +94,7 @@ def extract(doc):
             # The manuscript is inconsistent: most chapters put the name and
             # the prerequisite in separate blocks, but the Dragon-Blooded,
             # Abyssal, Getimian and Liminal chapters run them together into a
-            # single 14pt block ("Five-Dragon Tread Prerequisites: Athletics 3").
+            # single 14pt block (the name and its prerequisites run together).
             inline = INLINE_PREREQ.match(text)
             if inline:
                 name, match, offset = inline.group(1).strip(), PREREQ.match(
