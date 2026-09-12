@@ -13,20 +13,24 @@ Targets the [Exalted Essence system](https://github.com/Aliharu/Foundry-ExEss)
 
 ## What you get
 
-With all four books, 1,954 documents across 25 packs:
+With all four books, 1,983 documents across 26 packs:
 
 | Pack | Items |
 |---|---|
 | Universal Charms | 162 |
-| Infernal, Alchemical, Dragon-Blooded, Sidereal | 137–141 each |
-| Abyssal, Lunar, Solar, Getimian, Liminal | 130–136 each |
+| Infernal, Alchemical, Dragon-Blooded, Sidereal | 137-141 each |
+| Abyssal, Lunar, Solar, Getimian, Liminal | 130-136 each |
 | Martial Arts | 99 |
-| Exigent, Architect, Sovereign | 52–67 each |
-| Evocations & Hearthstones | 40 |
+| Antagonists | 68 |
+| Exigent, Architect, Sovereign | 52-67 each |
 | Sorcery & Necromancy Spells | 63 |
+| Evocations | 40 |
 | Sidereal Martial Arts | 31 |
-| Strawmaiden Janest | 25 |
+| Basic Equipment | 29 |
 | Shaping Rituals | 28 |
+| Strawmaiden Janest | 25 |
+| Hearthstones | 19 |
+| Artifacts | 15 |
 | Dragon King, Dream-Souled, Umbral | 6 each |
 
 Charms carry ability, requirement, Essence, mote/anima/Power cost, prerequisite

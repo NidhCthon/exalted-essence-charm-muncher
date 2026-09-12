@@ -40,7 +40,7 @@ LABELS = {
     "sidereal-charms": "Essence: Sidereal Charms",
     "strawmaiden-janest-charms": "Essence: Strawmaiden Janest Charms",
     "martial-arts": "Essence: Martial Arts",
-    "evocations": "Essence: Evocations & Hearthstones",
+    "evocations": "Essence: Evocations",
     "sorcery-spells": "Essence: Sorcery & Necromancy Spells",
     "shaping-rituals": "Essence: Shaping Rituals",
     "antagonists": "Essence: Antagonists",
