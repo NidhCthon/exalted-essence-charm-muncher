@@ -39,6 +39,7 @@ LABELS = {
     "sorcery-spells": "Essence: Sorcery & Necromancy Spells",
     "shaping-rituals": "Essence: Shaping Rituals",
     "antagonists": "Essence: Antagonists",
+    "artifacts": "Essence: Artifacts",
 }
 
 

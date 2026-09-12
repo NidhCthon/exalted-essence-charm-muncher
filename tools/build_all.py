@@ -29,6 +29,7 @@ BUILDERS = [
     ("build_sorcery.py", "map spells and rituals to Foundry Items"),
     # After the spells, because it links the ones an antagonist is given.
     ("build_antagonists.py", "map antagonists to Foundry Actors"),
+    ("build_artifacts.py", "map artifacts to Foundry weapon and armor Items"),
     ("build_packs.py", "compile LevelDB packs and the manifest"),
 ]
 
@@ -36,6 +37,7 @@ BUILDERS = [
 MULTI_BOOK = [
     ("extract_antagonists.py", ("core", "pillars", "tomb"),
      "antagonists from every book"),
+    ("extract_artifacts.py", ("core", "pillars"), "artifacts"),
 ]
 
 ENV_VARS = {
