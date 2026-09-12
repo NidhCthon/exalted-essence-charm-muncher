@@ -35,6 +35,24 @@ RANGES = [
     ("pillars", 168, 199),
 ]
 
+SOFT = "­"
+
+
+def join_spans(parts):
+    """Join spans with spaces, except across a word broken by a hyphen."""
+    out = ""
+    for part in parts:
+        if out and not out.endswith(SOFT):
+            out += " "
+        out = out.rstrip(SOFT) if out.endswith(SOFT) else out
+        out += part
+    return out.rstrip(SOFT)
+
+
+# Above a name's size, so a centred banner divides the page into regions
+# rather than being read as part of a column.
+BANNER_MIN_SIZE = 19.0
+
 NAME_SIZE = (17.0, 18.4)
 STAT_SIZE = (10.6, 11.2)
 VARIANT_SIZE = (13.5, 14.3)
@@ -58,23 +76,56 @@ FOOTER_RE = re.compile(r"CHAPTER [A-Z]+:|Mortals and Exalted|Gods and Monsters"
 
 
 def spans(doc, first, last):
-    """Every span in reading order: left column, then right, then next page."""
+    """Every span in reading order: left column, then right, then next page.
+
+    Except that a centred section banner straddles both columns and divides
+    the page, so the columns above it are read before it and the columns
+    below it after. Reading a whole column at a time instead walks an
+    antagonist's stats past the heading of the section underneath, which is
+    how one warship's stats ended up filed after a later name. The charm
+    extractor splits pages this way too - see order_page() in extract.py.
+    """
     for pno in range(first - 1, last):
         page = doc[pno]
         mid = page.rect.width / 2
-        blocks = []
+        units = []
         for blk in page.get_text("dict")["blocks"]:
             if blk.get("type") != 0:
                 continue
             x0, y0, x1, _ = blk["bbox"]
-            blocks.append((0 if (x0 + x1) / 2 < mid else 1, y0, blk))
-        blocks.sort(key=lambda b: (b[0], round(b[1], 1)))
-        for _, _, blk in blocks:
+            size = max((sp["size"] for line in blk.get("lines", [])
+                        for sp in line.get("spans", [])), default=0.0)
+            units.append((0 if (x0 + x1) / 2 < mid else 1, y0, size, blk))
+
+        banners = sorted((u for u in units if u[2] >= BANNER_MIN_SIZE),
+                         key=lambda u: u[1])
+        body = [u for u in units if u[2] < BANNER_MIN_SIZE]
+
+        ordered, lower = [], float("-inf")
+        edges = [b[1] for b in banners] + [float("inf")]
+        for index, upper in enumerate(edges):
+            region = [u for u in body if lower <= u[1] < upper]
+            ordered.extend(sorted(region, key=lambda u: (u[0], round(u[1], 1))))
+            if index < len(banners):
+                ordered.append(banners[index])
+            lower = upper
+
+        for _, _, _, blk in ordered:
             for line in blk.get("lines", []):
                 for sp in line.get("spans", []):
-                    text = clean(sp["text"])
-                    if text:
-                        yield pno + 1, round(sp["size"], 1), text
+                    raw = sp["text"]
+                    text = clean(raw)
+                    if not text:
+                        continue
+                    # clean() rejoins a word broken over a line, but only
+                    # where the break is still there to see. At span level it
+                    # is not: the span just ends on a soft hyphen and the
+                    # word continues in the next one, so "Signifi" and
+                    # "cant" would be joined with a space between them.
+                    # Carry the hyphen through for join_spans() to close up.
+                    if raw.rstrip().endswith(SOFT):
+                        text += SOFT
+                    yield pno + 1, round(sp["size"], 1), text
 
 
 def parse_stats(text):
@@ -213,7 +264,7 @@ def extract(doc, book, first, last, dump=None):
         nonlocal current, pending_name
         if not pending_name:
             return
-        name = clean(" ".join(pending_name))
+        name = clean(join_spans(pending_name))
         pending_name = []
         if len(name) < 3 or FOOTER_RE.search(name):
             return
@@ -255,11 +306,11 @@ def extract(doc, book, first, last, dump=None):
                 continue
             current["statline"].append((page, text))
         elif VARIANT_SIZE[0] <= size <= VARIANT_SIZE[1] and text.lower().startswith("variant"):
-            current["variants"].append({"name": text, "notes": []})
+            current["variants"].append({"name": text.rstrip(SOFT), "notes": []})
         elif current["variants"]:
-            current["variants"][-1]["notes"].append(text)
+            current["variants"][-1]["notes"].append(text.rstrip(SOFT))
         else:
-            current["body"].append(text)
+            current["body"].append(text.rstrip(SOFT))
 
     flush_name(last)
 
@@ -271,9 +322,9 @@ def extract(doc, book, first, last, dump=None):
         spans_seen, table = cut_at_battle_group_table(spans_seen)
         # Kept for verify_antagonists.py; main() strips it before writing.
         entry["statline"] = spans_seen
-        entry["sidebar"] = clean(" ".join(sidebar + table))
+        entry["sidebar"] = clean(join_spans(sidebar + table))
         stats, pools, qualities, weapon = parse_stats(
-            " ".join(text for _, text in spans_seen))
+            join_spans([text for _, text in spans_seen]))
         entry["stats"] = stats
         entry["pools"] = pools
         entry["qualities"] = qualities

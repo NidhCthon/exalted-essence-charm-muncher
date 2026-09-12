@@ -20,6 +20,8 @@ import re
 from collections import Counter
 from pathlib import Path
 
+from extract_battle_groups import parse_boxes
+
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "data" / "antagonists.raw.json"
 OUT = ROOT / "data" / "packs" / "antagonists"
@@ -70,8 +72,16 @@ def biography(entry):
     # text here rather than folded into the commander's numbers.
     sidebar = entry.get("sidebar")
     if sidebar:
-        blocks += "<h3>Battle group printed alongside</h3>"
-        blocks += to_html([sidebar])
+        groups = parse_boxes(sidebar)
+        if groups:
+            # Imported as their own actors, so point at them instead of
+            # printing the same numbers twice.
+            named = ", ".join(group_name(entry, g) for g in groups)
+            blocks += "<h3>Battle group printed alongside</h3>"
+            blocks += to_html(["Imported separately as: {}.".format(named)])
+        else:
+            blocks += "<h3>Printed alongside</h3>"
+            blocks += to_html([sidebar])
     for variant in entry.get("variants", []):
         blocks += "<h3>{}</h3>".format(html.escape(variant["name"]))
         blocks += to_html(variant["notes"])
@@ -166,9 +176,86 @@ def build(entry):
     }
 
 
+def group_name(entry, box):
+    """Name a battle group after the commander the book prints for it.
+
+    Naming it after the antagonist it sits beside would be a guess: a group
+    can be boxed next to one character while another commands it, and one
+    page prints a group whose commander is given as none at all.
+    """
+    if box["commander"]:
+        return "{}'s Battle Group".format(box["commander"])
+    return "Battle Group ({} p{})".format(entry["book"], entry["page"])
+
+
+def build_group(entry, box, index):
+    """A battle group as its own actor.
+
+    The box prints Size, Drill, Commander and Qualities and nothing else, so
+    Defense, Soak and the rest stay zero rather than borrowing the
+    commander's. The box's own text is kept in the biography so nothing that
+    was printed is lost.
+    """
+    name = group_name(entry, box)
+    identifier = doc_id("{}#{}".format(name, index), entry["book"], entry["page"])
+    notes = ["Printed beside {} ({} p{}).".format(
+        entry["name"], entry["book"], entry["page"])]
+    if box["drill_name"]:
+        notes.append("Drill: {} (+{}).".format(box["drill_name"], box["drill"]))
+    notes.append(box["text"])
+
+    return {
+        "_id": identifier,
+        "_key": "!actors!{}".format(identifier),
+        "name": name,
+        "type": "npc",
+        "img": "icons/svg/mystery-man.svg",
+        "system": {
+            "biography": to_html(notes),
+            "pagenum": str(entry["page"]),
+            "creaturetype": "mortal",
+            "battlegroup": True,
+            "pools": {
+                "primary": {"value": 0, "actions": ""},
+                "secondary": {"value": 0, "actions": ""},
+                "tertiary": {"value": 0, "actions": ""},
+            },
+            "health": {
+                "value": 0, "min": 0, "max": box["health"],
+                "levels": box["health"], "lethal": 0, "aggravated": 0,
+                "penalty": 0,
+            },
+            "defense": {"value": 0},
+            "soak": {"value": 0},
+            "hardness": {"value": 0},
+            "resolve": {"value": 0},
+            "essence": {"value": 1},
+            "size": {"value": box["size"]},
+            "drill": {"value": box["drill"]},
+            "commandbonus": {"value": 0},
+            "qualities": box["qualities"],
+        },
+        "prototypeToken": {
+            "name": name,
+            "actorLink": False,
+            "disposition": -1,
+            "sight": {"enabled": False},
+        },
+        "items": [],
+        "effects": [],
+        "folder": None,
+        "sort": 0,
+        "ownership": {"default": 0},
+        "flags": {},
+    }
+
+
 def main():
     entries = json.loads(SRC.read_text(encoding="utf-8"))
     actors = [build(e) for e in entries]
+    for entry in entries:
+        for index, box in enumerate(parse_boxes(entry.get("sidebar", ""))):
+            actors.append(build_group(entry, box, index))
 
     OUT.mkdir(parents=True, exist_ok=True)
     for stale in OUT.glob("*.json"):

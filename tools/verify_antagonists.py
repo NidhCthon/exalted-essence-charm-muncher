@@ -28,7 +28,7 @@ from collections import defaultdict
 
 from books import open_book
 from extract_antagonists import (NUM_RE, QUALITIES_RE, RANGES, WEAPON_RE,
-                                 extract)
+                                 extract, join_spans)
 
 
 def printed_on(doc, pages):
@@ -49,7 +49,7 @@ def stat_block_only(statline):
     stat block. parse_stats() already relies on the block coming first; this
     check has to agree with it or it reports noise.
     """
-    text = " ".join(span for _, span in statline)
+    text = join_spans([span for _, span in statline])
     ends = [match.start() for match in
             (QUALITIES_RE.search(text), WEAPON_RE.search(text)) if match]
     return text[:min(ends)] if ends else text
