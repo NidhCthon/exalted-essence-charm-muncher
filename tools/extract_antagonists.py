@@ -25,7 +25,7 @@ from collections import Counter
 from pathlib import Path
 
 from books import BOOKS, open_book
-from extract import clean, dedupe_doubled
+from extract import clean, dedupe_doubled, titlecase
 
 OUT = Path(__file__).resolve().parent.parent / "data" / "antagonists.raw.json"
 
@@ -46,8 +46,11 @@ VARIANT_SIZE = (13.5, 14.3)
 NUM_LABELS = ("Health Levels", "Resolve", "Defense", "Defence", "Hardness",
               "Soak", "Essence", "Size", "Drill", "Command")
 NUM_RE = re.compile(r"\b(" + "|".join(NUM_LABELS) + r")\s*:?\s*(\d+)", re.I)
+# Named antagonists print "Primary Pool (9): Athletics"; the template blocks
+# in sidebars print "Primary Pool: 6;" instead. Both forms, or the templates
+# import with no pools at all.
 POOL_RE = re.compile(
-    r"\b(Primary|Secondary|Tertiary)\s+Pool\s*\((\d+)\)\s*:?\s*", re.I)
+    r"\b(Primary|Secondary|Tertiary)\s+Pool\s*[:(]?\s*(\d+)\)?\s*:?\s*", re.I)
 QUALITIES_RE = re.compile(r"\b(ATTACKS AND QUALITIES|QUALITIES|ATTACKS)\b")
 WEAPON_RE = re.compile(r"\bWeapon\s*:\s*", re.I)
 FOOTER_RE = re.compile(r"CHAPTER [A-Z]+:|Mortals and Exalted|Gods and Monsters"
@@ -113,7 +116,94 @@ def parse_stats(text):
     return stats, pools, qualities, weapon
 
 
-def extract(doc, book, first, last):
+def split_doubled_sidebar(spans_seen):
+    """Separate a stat line from the sidebar box printed on top of it.
+
+    Several antagonists have a battle group boxed out beside them - a
+    commander's warship or warband, with its own Size, Drill, Commander and
+    Qualities. That box is a separate entity, but it lands in the middle of
+    the host's stat spans, so its Size was being read as the commander's and
+    its prose spliced into the middle of the commander's qualities.
+
+    These boxes are drawn twice, span for span, the way sidebars are
+    throughout these books - which is what tells them apart from the stat
+    block they interrupt. A span is sidebar when it repeats the span either
+    side of it; real stat spans never do. Dropping exactly those spans also
+    rejoins the host's prose across the interruption.
+    """
+    texts = [text for _, text in spans_seen]
+    kept, sidebar = [], []
+    for i, (page, text) in enumerate(spans_seen):
+        doubled = ((i > 0 and texts[i - 1] == text)
+                   or (i + 1 < len(texts) and texts[i + 1] == text))
+        if doubled:
+            # Keep one copy of each pair, in order, as the box's own text.
+            if not sidebar or sidebar[-1] != text:
+                sidebar.append(text)
+        else:
+            kept.append((page, text))
+    return kept, sidebar
+
+
+TABLE_LABEL = re.compile(r"^(QUALITIES|DEFENSE|DEFENCE|HEALTH|SOAK|DRILL|SIZE"
+                         r"|COMMAND|ESSENCE|RESOLVE|HARDNESS)$")
+
+
+def cut_at_battle_group_table(spans_seen):
+    """Stop a stat line where a battle group's stat table begins.
+
+    Battle groups print their stats as a table: the labels on one row, the
+    numbers on the next. Read as a run of spans that becomes "... DRILL SIZE
+    1 10 3", so SIZE takes the first number of the number row - and when the
+    table sits beside another antagonist, that number lands on them.
+
+    A wrapped "ATTACKS AND QUALITIES" heading can leave one bare label span on
+    its own, so a table is only called where two run together. Everything from
+    there is set aside rather than parsed: those numbers need position-aware
+    reading, which is tracked separately.
+    """
+    for i in range(len(spans_seen) - 1):
+        if (TABLE_LABEL.match(spans_seen[i][1])
+                and TABLE_LABEL.match(spans_seen[i + 1][1])):
+            return spans_seen[:i], [text for _, text in spans_seen[i:]]
+    return spans_seen, []
+
+
+TEMPLATE_HEAD = re.compile(r"^[A-Z][A-Z' -]{3,40}$")
+
+
+def heads_a_stat_block(stream, index):
+    """True when an all-caps span is a stat block's heading.
+
+    Template blocks in sidebars - COMMON ANIMAL, DANGEROUS ANIMAL - are headed
+    at stat size rather than name size, so nothing marks them as names and two
+    templates merge into one entry. What separates such a heading from
+    "ATTACKS AND QUALITIES" or a table's label row is simply what follows it:
+    a stat block opens on its pools.
+    """
+    following = stream[index + 1][2] if index + 1 < len(stream) else ""
+    return following.lower().startswith("primary pool")
+
+
+def dump_statline(entry, spans_seen):
+    """Print the spans that fed one entry's stat line, with their pages.
+
+    The stat line is what parse_stats() sees, so when an actor ends up with a
+    number nobody printed on its page, this is where that number came from.
+    """
+    print()
+    print("=" * 72)
+    print("{}  (name found on p{})".format(entry["name"], entry["page"]))
+    print("-" * 72)
+    for page, text in spans_seen:
+        flag = " " if page == entry["page"] else "*"
+        print("  {} p{:<4} {}".format(flag, page, text))
+    pages = sorted({p for p, _ in spans_seen})
+    print("-" * 72)
+    print("  spans: {}   pages spanned: {}".format(len(spans_seen), pages))
+
+
+def extract(doc, book, first, last, dump=None):
     entries = []
     current = None
     pending_name = []
@@ -138,7 +228,8 @@ def extract(doc, book, first, last):
         }
         entries.append(current)
 
-    for page, size, text in spans(doc, first, last):
+    stream = list(spans(doc, first, last))
+    for index, (page, size, text) in enumerate(stream):
         if FOOTER_RE.search(text) and size < NAME_SIZE[0]:
             continue
 
@@ -157,7 +248,11 @@ def extract(doc, book, first, last):
             continue
 
         if STAT_SIZE[0] <= size <= STAT_SIZE[1]:
-            current["statline"].append(text)
+            if TEMPLATE_HEAD.match(text) and heads_a_stat_block(stream, index):
+                pending_name.append(titlecase(text))
+                flush_name(page)
+                continue
+            current["statline"].append((page, text))
         elif VARIANT_SIZE[0] <= size <= VARIANT_SIZE[1] and text.lower().startswith("variant"):
             current["variants"].append({"name": text, "notes": []})
         elif current["variants"]:
@@ -168,7 +263,16 @@ def extract(doc, book, first, last):
     flush_name(last)
 
     for entry in entries:
-        stats, pools, qualities, weapon = parse_stats(" ".join(entry.pop("statline")))
+        spans_seen = entry["statline"]
+        if dump and dump.lower() in entry["name"].lower():
+            dump_statline(entry, spans_seen)
+        spans_seen, sidebar = split_doubled_sidebar(spans_seen)
+        spans_seen, table = cut_at_battle_group_table(spans_seen)
+        # Kept for verify_antagonists.py; main() strips it before writing.
+        entry["statline"] = spans_seen
+        entry["sidebar"] = clean(" ".join(sidebar + table))
+        stats, pools, qualities, weapon = parse_stats(
+            " ".join(text for _, text in spans_seen))
         entry["stats"] = stats
         entry["pools"] = pools
         entry["qualities"] = qualities
@@ -179,24 +283,39 @@ def extract(doc, book, first, last):
             return True
         return "defense" in entry["stats"] and "soak" in entry["stats"]
 
-    return [e for e in entries if is_antagonist(e)]
+    kept = [e for e in entries if is_antagonist(e)]
+    skipped = [e for e in entries if not is_antagonist(e)]
+    if skipped:
+        # Mostly section headings that were read as names. Printed because a
+        # real antagonist landing here means its stat block was lost.
+        print("  skipped, no stats: {}".format(
+            ", ".join("{} (p{})".format(e["name"][:34], e["page"])
+                      for e in skipped)))
+    return kept
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for key in ("core", "pillars"):
         parser.add_argument("--{}".format(key), help="path to that PDF")
+    parser.add_argument("--dump", metavar="NAME",
+                        help="print the raw stat-line spans, with their page "
+                             "numbers, for every entry whose name contains "
+                             "NAME - use this to find where a wrong number "
+                             "actually came from")
     args = parser.parse_args()
 
     all_entries = []
     for book, first, last in RANGES:
         doc, path = open_book(book, getattr(args, book, None))
         print("reading {}: {}".format(book, path.name))
-        found = extract(doc, book, first, last)
+        found = extract(doc, book, first, last, dump=args.dump)
         print("  entries: {}".format(len(found)))
         all_entries.extend(found)
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
+    for entry in all_entries:
+        entry.pop("statline", None)
     OUT.write_text(json.dumps(all_entries, indent=2, ensure_ascii=False),
                    encoding="utf-8")
 

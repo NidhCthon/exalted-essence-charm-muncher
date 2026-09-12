@@ -65,6 +65,13 @@ def biography(entry):
         parts.append("Weapon: {}".format(weapon))
 
     blocks = to_html(parts)
+    # A battle group boxed out beside this antagonist - their warship or
+    # warband. It is a separate entity with its own stats, so it is kept as
+    # text here rather than folded into the commander's numbers.
+    sidebar = entry.get("sidebar")
+    if sidebar:
+        blocks += "<h3>Battle group printed alongside</h3>"
+        blocks += to_html([sidebar])
     for variant in entry.get("variants", []):
         blocks += "<h3>{}</h3>".format(html.escape(variant["name"]))
         blocks += to_html(variant["notes"])
