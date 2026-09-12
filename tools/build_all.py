@@ -27,13 +27,22 @@ EXTRACTORS = [
 BUILDERS = [
     ("build_items.py", "map charms to Foundry Items"),
     ("build_sorcery.py", "map spells and rituals to Foundry Items"),
+    # After the spells, because it links the ones an antagonist is given.
+    ("build_antagonists.py", "map antagonists to Foundry Actors"),
     ("build_packs.py", "compile LevelDB packs and the manifest"),
+]
+
+# Extractors that read several books at once rather than one.
+MULTI_BOOK = [
+    ("extract_antagonists.py", ("core", "pillars", "tomb"),
+     "antagonists from every book"),
 ]
 
 ENV_VARS = {
     "core": "ESSENCE_CORE_PDF",
     "pillars": "ESSENCE_PILLARS_PDF",
     "playersguide": "ESSENCE_PLAYERSGUIDE_PDF",
+    "tomb": "ESSENCE_TOMB_PDF",
 }
 
 
@@ -71,6 +80,22 @@ def main():
             continue
         print("\n=== {} ===".format(description))
         if not run(script, ["--pdf", path]):
+            sys.exit("failed: {}".format(script))
+        ran.append(description)
+
+    for script, books, description in MULTI_BOOK:
+        available = [b for b in books
+                     if supplied.get(b) or os.environ.get(ENV_VARS[b])]
+        if not available:
+            skipped.append(description)
+            continue
+        print("\n=== {} ===".format(description))
+        arguments = []
+        for book in available:
+            path = supplied.get(book)
+            if path:
+                arguments += ["--{}".format(book), path]
+        if not run(script, arguments):
             sys.exit("failed: {}".format(script))
         ran.append(description)
 

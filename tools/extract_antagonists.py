@@ -19,6 +19,7 @@ and the Tomb of Memory jumpstart, which does not - see Profile below.
 """
 import argparse
 import json
+import os
 import re
 import sys
 from collections import Counter
@@ -89,7 +90,9 @@ NUM_RE = re.compile(r"\b(" + "|".join(NUM_LABELS) + r")\s*:?\s*(\d+)", re.I)
 POOL_RE = re.compile(
     r"\b(Primary|Secondary|Tertiary)\s+Pool\s*[:(]?\s*(\d+)\)?\s*:?\s*", re.I)
 QUALITIES_RE = re.compile(r"\b(ATTACKS AND QUALITIES|QUALITIES|ATTACKS)\b")
-WEAPON_RE = re.compile(r"\bWeapon\s*:\s*", re.I)
+# Plural too: an antagonist carrying more than one is given a "Weapons:"
+# line, and matching only the singular left those stats inside qualities.
+WEAPON_RE = re.compile(r"\bWeapons?\s*:\s*", re.I)
 DRILL_WORD_RE = re.compile(r"\bDrill\s*:\s*([A-Za-z]+)", re.I)
 # A page number, set twice the way the running foot is. It carries no
 # meaning into a description, where it reads as a stray number.
@@ -416,6 +419,11 @@ def main():
 
     all_entries = []
     for book, first, last, profile in RANGES:
+        # Books are optional here as they are in build_all: extract from the
+        # ones that were supplied rather than refusing to run without all.
+        if not (getattr(args, book, None) or os.environ.get(BOOKS[book].env_var)):
+            print("skipping {}: no PDF supplied".format(book))
+            continue
         doc, path = open_book(book, getattr(args, book, None))
         print("reading {}: {}".format(book, path.name))
         found = extract(doc, book, first, last, profile, dump=args.dump)

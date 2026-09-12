@@ -63,8 +63,75 @@ def to_html(paragraphs):
     return "".join("<p>{}</p>".format(html.escape(p)) for p in paragraphs if p)
 
 
-def biography(entry):
-    """Prose, the weapon line, and any variants, in that order."""
+MODULE_ID = "exalted-essence-charms"
+SPELLS = ROOT / "data" / "packs" / "sorcery-spells"
+
+# Sorcerers and necromancers are the one kind of antagonist the books give a
+# list of magic outright. Everything else on the qualities line is Qualities,
+# which are their own mechanic and must not be matched against charm names.
+SPELL_LIST_RE = re.compile(r"knows the following spells\s*:?\s*(.+)$", re.I)
+# The sentence after the list runs straight on from it, because the full stop
+# between them does not survive extraction. These end the list instead.
+LIST_END_RE = re.compile(
+    r"\b(?:and\s+|or\s+)?any other spell"
+    r"|\b(?:she|he|they)\s+may\s+have\b", re.I)
+
+
+def spell_key(name):
+    """Match on words alone. An antagonist's list writes "Life Ending Wave"
+    for a spell the sorcery chapter sets as "Life-Ending Wave"."""
+    return re.sub(r"[^a-z0-9 ]", " ", name.lower()).split()
+
+
+def spell_index():
+    """Spell name to document id, for linking. Empty if none were built."""
+    if not SPELLS.exists():
+        return {}
+    index = {}
+    for path in SPELLS.glob("*.json"):
+        spell = json.loads(path.read_text(encoding="utf-8"))
+        index[" ".join(spell_key(spell["name"]))] = spell["_id"]
+    return index
+
+
+def spell_links(entry, index):
+    """Link the spells this antagonist is actually given.
+
+    Only a printed "knows the following spells" list counts. Matching names
+    anywhere in the text would attach a spell to any antagonist whose
+    Qualities happen to share a name with one.
+
+    Split on commas alone - one spell is "Baneful Sun and Shadow", so
+    splitting on "and" as well would tear it in half.
+    """
+    found = SPELL_LIST_RE.search(entry.get("qualities", "") or "")
+    if not found or not index:
+        return ""
+
+    listed = found.group(1)
+    stop = LIST_END_RE.search(listed)
+    if stop:
+        listed = listed[:stop.start()]
+
+    links = []
+    for name in listed.split(","):
+        name = re.sub(r"^and\s+", "", name.strip(" .,;:"), flags=re.I)
+        if len(name) < 4:
+            continue
+        identifier = index.get(" ".join(spell_key(name)))
+        if identifier:
+            links.append("@UUID[Compendium.{}.sorcery-spells.Item.{}]{{{}}}"
+                         .format(MODULE_ID, identifier, name))
+        else:
+            # Named but not in the pack - say so rather than link nothing.
+            links.append("{} (not in the compendium)".format(html.escape(name)))
+    if not links:
+        return ""
+    return "<h3>Spells</h3><p>{}</p>".format(", ".join(links))
+
+
+def biography(entry, spells=None):
+    """Prose, the weapon line, the spell list, and any variants."""
     parts = list(entry["body"])
     if prints_stats_as_a_table(entry):
         parts.insert(0, "STATS NOT IMPORTED: this battle group prints its "
@@ -96,6 +163,7 @@ def biography(entry):
     for variant in entry.get("variants", []):
         blocks += "<h3>{}</h3>".format(html.escape(variant["name"]))
         blocks += to_html(variant["notes"])
+    blocks += spell_links(entry, spells or {})
     return blocks or to_html([NO_DESCRIPTION])
 
 
@@ -113,7 +181,7 @@ def prints_stats_as_a_table(entry):
     return sum(1 for marker in TABLE_MARKERS if marker in qualities) >= 3
 
 
-def build(entry):
+def build(entry, spells=None):
     stats = entry["stats"]
     pools = entry["pools"]
     identifier = doc_id(entry["name"], entry["book"], entry["page"])
@@ -144,7 +212,7 @@ def build(entry):
         "type": "npc",
         "img": "icons/svg/mystery-man.svg",
         "system": {
-            "biography": biography(entry),
+            "biography": biography(entry, spells),
             "pagenum": str(entry["page"]),
             "creaturetype": "mortal",
             "battlegroup": battlegroup,
@@ -264,7 +332,8 @@ def build_group(entry, box, index):
 
 def main():
     entries = json.loads(SRC.read_text(encoding="utf-8"))
-    actors = [build(e) for e in entries]
+    spells = spell_index()
+    actors = [build(e, spells) for e in entries]
     for entry in entries:
         for index, box in enumerate(parse_boxes(entry.get("sidebar", ""))):
             actors.append(build_group(entry, box, index))
@@ -276,7 +345,10 @@ def main():
         (OUT / "{}.json".format(actor["_id"])).write_text(
             json.dumps(actor, indent=2, ensure_ascii=False), encoding="utf-8")
 
+    linked = sum(1 for a in actors if "@UUID[" in a["system"]["biography"])
     print("actors written : {}".format(len(actors)))
+    print("spell lists    : {} linked from {} spells indexed".format(
+        linked, len(spells)))
     print("ids unique     : {}".format(
         len({a["_id"] for a in actors}) == len(actors)))
     dupes = [n for n, k in Counter(a["name"] for a in actors).items() if k > 1]
