@@ -86,6 +86,14 @@ BOOKS = {
         # Apostrophe-free: the title on page 1 uses a curly apostrophe.
         anchor_text="Draft Manuscript",
     ),
+    "tomb": Book(
+        key="tomb",
+        title="Tomb of Memory: An Exalted Essence Jumpstart",
+        env_var="ESSENCE_TOMB_PDF",
+        page_count=83,
+        anchor_page=41,
+        anchor_text="CHAPTER TWO: TOMB OF MEMORY",
+    ),
 }
 
 

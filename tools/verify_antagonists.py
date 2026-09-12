@@ -27,17 +27,31 @@ import sys
 from collections import defaultdict
 
 from books import open_book
-from extract_antagonists import (NUM_RE, QUALITIES_RE, RANGES, WEAPON_RE,
-                                 extract, join_spans)
+from extract_antagonists import (DRILL_WORD_RE, DRILL_WORDS, NUM_RE,
+                                 QUALITIES_RE, RANGES, WEAPON_RE, extract,
+                                 join_spans)
 
 
 def printed_on(doc, pages):
-    """Every (label, number) pair the book prints on those pages."""
+    """Every (label, number) pair the book prints on those pages.
+
+    The two labels the extractor normalises have to be normalised here too,
+    or a correct import looks unsourced: a page printing "Health: 10" is the
+    source of a health levels of 10, and one printing "Drill: Regular" is the
+    source of that drill's modifier.
+    """
     found = set()
     for page in pages:
         text = doc[page - 1].get_text()
         for match in NUM_RE.finditer(text):
-            found.add((match.group(1).lower(), int(match.group(2))))
+            label, value = match.group(1).lower(), int(match.group(2))
+            found.add((label, value))
+            if label == "health":
+                found.add(("health levels", value))
+        for match in DRILL_WORD_RE.finditer(text):
+            word = match.group(1).lower()
+            if word in DRILL_WORDS:
+                found.add(("drill", DRILL_WORDS[word]))
     return found
 
 
@@ -67,11 +81,11 @@ def main():
     problems = 0
     checked = 0
 
-    for book, first, last in RANGES:
+    for book, first, last, profile in RANGES:
         doc, path = open_book(book, None)
         print("checking {}: {}".format(book, path.name))
 
-        for entry in extract(doc, book, first, last):
+        for entry in extract(doc, book, first, last, profile):
             checked += 1
             name = entry["name"][:44]
             statline = entry["statline"]
@@ -94,7 +108,10 @@ def main():
                 print("              {} on none of those pages".format(
                     sorted(unsourced)))
 
-            if "size" in entry["stats"] and "drill" not in entry["qualities"].lower():
+            # A battle group prints Size and Drill together, so Size beside a
+            # Drill line is its own, not borrowed.
+            printed = stat_block_only(statline).lower()
+            if "size" in entry["stats"] and "drill" not in printed:
                 problems += 1
                 print("  SIZE      {:46s} p{}  size {}".format(
                     name, pages, entry["stats"]["size"]))

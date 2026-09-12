@@ -48,19 +48,46 @@ named antagonists use, without which the templates imported with no pools.
 
 ## State
 
-59 actors, verification clean apart from one known gap. Previously 58; the
-merged animal-template entry became two templates, and nothing else changed
-count.
+68 actors, verification clean: 64 antagonists plus 4 battle groups imported
+as their own actors. Three books - the core rulebook, Pillars of Creation,
+and the Tomb of Memory jumpstart.
 
 Three entries on Pillars pp180-191 - the ones that first exposed the bug -
 were spot-checked against the book and are correct field for field.
 
-## The one remaining gap
+## Two more causes, found later
 
-One Pillars entry (p192) imports its pools but no defensive stats, and the
-verifier reports it as INCOMPLETE. Its stats are printed as a battle group
-table, so this is the table limitation noted below rather than a new fault.
-Enter its numbers by hand, or write the table parser.
+4. **Reading order ignored section banners.** A centred banner straddles both
+   columns and divides the page, but the reader took a whole column at a
+   time. A stat block in the upper right was therefore walked past the
+   heading of the section underneath and filed against a later name - one
+   entry lost its stats entirely and a section heading gained them and was
+   imported as an antagonist. Pages are now split into regions at each
+   banner, which is what the charm extractor already did.
+
+5. **Stats were read from the prose as well as the block.** An antagonist
+   whose quality lets them "create a Size 1 battle group" was importing a
+   Size of 1. Numbers are now read only from the part of the stat line before
+   the qualities heading, which keeps prose out by construction instead of
+   relying on the block happening to come first.
+
+## Battle groups
+
+Mostly not tables. The one table in range is the example in the rules text,
+and it is now readable - its headings are rotated ninety degrees, so nothing
+but horizontal overlap relates them to the row of values underneath.
+
+The groups that belong to antagonists are boxed out beside their commander
+and print labelled values, two to a page in one case. Those are imported as
+their own actors, named after the commander the book prints rather than the
+antagonist they happen to sit beside - one page prints a group next to one
+character while another commands it, and another gives no commander at all.
+Size, Drill and Health come from the box; Defense and the rest stay zero
+rather than borrowing the commander's.
+
+The jumpstart prints its one group a third way again, with a short "Health"
+label and a Drill given as a word with no modifier in brackets. Both are
+handled.
 
 ## Verification
 
@@ -79,15 +106,12 @@ Exit code 1 on any finding, so it can gate a rebuild.
 
 ## Still open
 
-- Battle groups print their stats as a table and are still not imported. The
-  table text is preserved in the neighbouring actor's biography under
-  "Battle group printed alongside" rather than parsed. Reading it needs
-  position-aware parsing, since labels and numbers are on separate rows.
-- No actor is flagged `battlegroup` any more. That is deliberate: nothing
-  claims to be a battle group on the strength of a number borrowed from
-  somewhere else. It becomes correct on its own once the tables are parsed.
-- The Storyteller's Guide draft's antagonists are set on a different type
-  scale and need their own pass.
+- There is no Essence Storyteller's Guide on this machine. What was taken for
+  one is a six-page Combat Reforged summary with no antagonists in it, so
+  that book is not pending work - it is simply absent. The Player's Guide
+  draft has antagonists on a single page and is not worth a pass.
+- Battle groups carry no Defense, Soak or Resolve, because the boxes do not
+  print any. That is faithful to the book rather than a gap.
 
 ## Traps
 

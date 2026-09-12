@@ -14,8 +14,8 @@ anything the charm extractor handles:
   stat blocks. Each is kept as text on its parent rather than invented as a
   separate actor, because applying prose adjustments is guesswork.
 
-Covers the core rulebook and Pillars of Creation, which share a type scale.
-The Storyteller's Guide draft is set differently and is handled separately.
+Covers the core rulebook and Pillars of Creation, which share a type scale,
+and the Tomb of Memory jumpstart, which does not - see Profile below.
 """
 import argparse
 import json
@@ -26,13 +26,34 @@ from pathlib import Path
 
 from books import BOOKS, open_book
 from extract import clean, dedupe_doubled, titlecase
+from extract_battle_groups import DRILL_RE
 
 OUT = Path(__file__).resolve().parent.parent / "data" / "antagonists.raw.json"
 
-# (book key, first page, last page) - 1-indexed, inclusive.
+
+class Profile:
+    """The type sizes a book sets its antagonists in.
+
+    The core book and Pillars share a scale. The jumpstart does not - it
+    names antagonists at the size the other two use for a variant - so the
+    sizes cannot be module constants shared by every book.
+    """
+
+    def __init__(self, name, stat, variant=(0.0, 0.0), banner=19.0):
+        self.name = name
+        self.stat = stat
+        self.variant = variant      # (0, 0) where a book has no variants
+        self.banner = banner        # above a name, so banners divide a page
+
+
+RULEBOOK = Profile(name=(17.0, 18.4), stat=(10.6, 11.2), variant=(13.5, 14.3))
+JUMPSTART = Profile(name=(13.6, 14.2), stat=(10.2, 11.2))
+
+# (book key, first page, last page, profile) - pages 1-indexed, inclusive.
 RANGES = [
-    ("core", 316, 341),
-    ("pillars", 168, 199),
+    ("core", 316, 341, RULEBOOK),
+    ("pillars", 168, 199, RULEBOOK),
+    ("tomb", 41, 44, JUMPSTART),
 ]
 
 SOFT = "­"
@@ -49,20 +70,18 @@ def join_spans(parts):
     return out.rstrip(SOFT)
 
 
-# Above a name's size, so a centred banner divides the page into regions
-# rather than being read as part of a column.
-BANNER_MIN_SIZE = 19.0
-
-NAME_SIZE = (17.0, 18.4)
-STAT_SIZE = (10.6, 11.2)
-VARIANT_SIZE = (13.5, 14.3)
-
 # A stat is a label followed by a number. The same words appear in the
 # qualities prose - "reduces Defense by one" - so matching a bare label lets
 # prose overwrite the real value. Numbers are required, and the first match
 # wins, because the stat line always precedes the prose.
-NUM_LABELS = ("Health Levels", "Resolve", "Defense", "Defence", "Hardness",
-              "Soak", "Essence", "Size", "Drill", "Command")
+# "Health Levels" has to precede "Health" so the longer label wins; the
+# jumpstart prints the short form for its battle groups.
+NUM_LABELS = ("Health Levels", "Health", "Resolve", "Defense", "Defence",
+              "Hardness", "Soak", "Essence", "Size", "Drill", "Command")
+
+# Drill is a word. Where it is printed without its modifier in brackets,
+# this is the modifier that word stands for.
+DRILL_WORDS = {"poor": 0, "regular": 1, "veteran": 2, "elite": 3}
 NUM_RE = re.compile(r"\b(" + "|".join(NUM_LABELS) + r")\s*:?\s*(\d+)", re.I)
 # Named antagonists print the parenthesised form; the template blocks
 # in sidebars print the colon form instead. Both forms, or the templates
@@ -71,11 +90,12 @@ POOL_RE = re.compile(
     r"\b(Primary|Secondary|Tertiary)\s+Pool\s*[:(]?\s*(\d+)\)?\s*:?\s*", re.I)
 QUALITIES_RE = re.compile(r"\b(ATTACKS AND QUALITIES|QUALITIES|ATTACKS)\b")
 WEAPON_RE = re.compile(r"\bWeapon\s*:\s*", re.I)
+DRILL_WORD_RE = re.compile(r"\bDrill\s*:\s*([A-Za-z]+)", re.I)
 FOOTER_RE = re.compile(r"CHAPTER [A-Z]+:|Mortals and Exalted|Gods and Monsters"
                        r"|Exalted Antagonists|Strange Beasts", re.I)
 
 
-def spans(doc, first, last):
+def spans(doc, first, last, banner_min):
     """Every span in reading order: left column, then right, then next page.
 
     Except that a centred section banner straddles both columns and divides
@@ -97,9 +117,9 @@ def spans(doc, first, last):
                         for sp in line.get("spans", [])), default=0.0)
             units.append((0 if (x0 + x1) / 2 < mid else 1, y0, size, blk))
 
-        banners = sorted((u for u in units if u[2] >= BANNER_MIN_SIZE),
+        banners = sorted((u for u in units if u[2] >= banner_min),
                          key=lambda u: u[1])
-        body = [u for u in units if u[2] < BANNER_MIN_SIZE]
+        body = [u for u in units if u[2] < banner_min]
 
         ordered, lower = [], float("-inf")
         edges = [b[1] for b in banners] + [float("inf")]
@@ -128,14 +148,44 @@ def spans(doc, first, last):
                     yield pno + 1, round(sp["size"], 1), text
 
 
+def stat_block_of(text):
+    """The part of a stat line before the prose starts.
+
+    Everything after the qualities heading is description, and description
+    names traits with numbers: one antagonist can "create a Size 1 battle
+    group", which is not that antagonist having a Size. Reading numbers only
+    from the block keeps prose out by construction rather than relying on the
+    block happening to come first.
+    """
+    ends = [match.start() for match in
+            (QUALITIES_RE.search(text), WEAPON_RE.search(text)) if match]
+    return text[:min(ends)] if ends else text
+
+
 def parse_stats(text):
     """Split a run-together stat line into numbers, pools and prose."""
     stats, pools = {}, {}
 
-    for match in NUM_RE.finditer(text):
+    block = stat_block_of(text)
+    for match in NUM_RE.finditer(block):
         label = match.group(1).lower()
         if label not in stats:            # first occurrence is the stat block
             stats[label] = int(match.group(2))
+
+    # Drill is printed as a word with its modifier in brackets, so it never
+    # matches the label-and-number pattern the other stats use.
+    if "health" in stats:
+        stats.setdefault("health levels", stats.pop("health"))
+    else:
+        stats.pop("health", None)
+
+    drill = DRILL_RE.search(block)
+    if drill:
+        stats["drill"] = int(drill.group(2))
+    else:
+        word = DRILL_WORD_RE.search(block)
+        if word and word.group(1).lower() in DRILL_WORDS:
+            stats["drill"] = DRILL_WORDS[word.group(1).lower()]
 
     # A pool's actions run until the next pool, the next stat, or the
     # qualities heading - whichever comes first.
@@ -255,7 +305,7 @@ def dump_statline(entry, spans_seen):
     print("  spans: {}   pages spanned: {}".format(len(spans_seen), pages))
 
 
-def extract(doc, book, first, last, dump=None):
+def extract(doc, book, first, last, profile, dump=None):
     entries = []
     current = None
     pending_name = []
@@ -280,17 +330,18 @@ def extract(doc, book, first, last, dump=None):
         }
         entries.append(current)
 
-    stream = list(spans(doc, first, last))
+    stream = list(spans(doc, first, last, profile.banner))
     for index, (page, size, text) in enumerate(stream):
-        if FOOTER_RE.search(text) and size < NAME_SIZE[0]:
+        if FOOTER_RE.search(text) and size < profile.name[0]:
             continue
 
-        if NAME_SIZE[0] <= size <= NAME_SIZE[1]:
+        if profile.name[0] <= size <= profile.name[1]:
             pending_name.append(text)
             continue
         # Pillars names its sub-entries at the size the core book uses for
         # "Variant:", so the leading word is what separates them.
-        if (VARIANT_SIZE[0] <= size <= VARIANT_SIZE[1]
+        if (profile.variant[0] <= size <= profile.variant[1]
+                and profile.variant[1]
                 and not text.lower().startswith("variant")):
             pending_name.append(text)
             continue
@@ -299,13 +350,14 @@ def extract(doc, book, first, last, dump=None):
         if current is None:
             continue
 
-        if STAT_SIZE[0] <= size <= STAT_SIZE[1]:
+        if profile.stat[0] <= size <= profile.stat[1]:
             if TEMPLATE_HEAD.match(text) and heads_a_stat_block(stream, index):
                 pending_name.append(titlecase(text))
                 flush_name(page)
                 continue
             current["statline"].append((page, text))
-        elif VARIANT_SIZE[0] <= size <= VARIANT_SIZE[1] and text.lower().startswith("variant"):
+        elif (profile.variant[1] and profile.variant[0] <= size <= profile.variant[1]
+              and text.lower().startswith("variant")):
             current["variants"].append({"name": text.rstrip(SOFT), "notes": []})
         elif current["variants"]:
             current["variants"][-1]["notes"].append(text.rstrip(SOFT))
@@ -348,7 +400,7 @@ def extract(doc, book, first, last, dump=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    for key in ("core", "pillars"):
+    for key in ("core", "pillars", "tomb"):
         parser.add_argument("--{}".format(key), help="path to that PDF")
     parser.add_argument("--dump", metavar="NAME",
                         help="print the raw stat-line spans, with their page "
@@ -358,10 +410,10 @@ def main():
     args = parser.parse_args()
 
     all_entries = []
-    for book, first, last in RANGES:
+    for book, first, last, profile in RANGES:
         doc, path = open_book(book, getattr(args, book, None))
         print("reading {}: {}".format(book, path.name))
-        found = extract(doc, book, first, last, dump=args.dump)
+        found = extract(doc, book, first, last, profile, dump=args.dump)
         print("  entries: {}".format(len(found)))
         all_entries.extend(found)
 
