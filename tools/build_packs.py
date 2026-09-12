@@ -16,6 +16,9 @@ MODULE = ROOT / "module"
 CLI = ROOT / "node_modules" / "@foundryvtt" / "foundryvtt-cli" / "fvtt.mjs"
 
 MODULE_ID = "exalted-essence-charms"
+
+# Packs of Actors rather than Items.
+ACTOR_PACKS = {"antagonists"}
 SYSTEM_ID = "exaltedessence"
 
 LABELS = {
@@ -35,6 +38,7 @@ LABELS = {
     "evocations": "Essence: Evocations & Hearthstones",
     "sorcery-spells": "Essence: Sorcery & Necromancy Spells",
     "shaping-rituals": "Essence: Shaping Rituals",
+    "antagonists": "Essence: Antagonists",
 }
 
 
@@ -71,7 +75,7 @@ def main():
             "name": name,
             "label": LABELS.get(name, name),
             "path": "packs/{}".format(name),
-            "type": "Item",
+            "type": "Actor" if name in ACTOR_PACKS else "Item",
             "system": SYSTEM_ID,
             "ownership": {"PLAYER": "OBSERVER", "ASSISTANT": "OWNER"},
         })
