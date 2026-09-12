@@ -83,6 +83,10 @@ def main():
         })
         print("  {:4d}  {}".format(count, name))
 
+    # No manifest or download URL. Those would point Foundry at a published
+    # zip of the packs, and the packs are the publisher's text - see NOTICE.
+    # The module is built on the machine that owns the books and installed
+    # from there.
     manifest = {
         "id": MODULE_ID,
         "title": "Exalted Essence - Charms",
@@ -90,9 +94,13 @@ def main():
             "Charms, Martial Arts, and Evocations from Exalted Essence as "
             "drag-and-drop compendium items for the Exalted Essence system."
         ),
-        "version": "0.2.0",
+        "version": "0.5.0",
         "compatibility": {"minimum": "14", "verified": "14"},
         "authors": [{"name": "NidhCthon"}],
+        "url": "https://github.com/NidhCthon/exalted-essence-charm-muncher",
+        "readme": "https://github.com/NidhCthon/exalted-essence-charm-muncher#readme",
+        "license": "https://github.com/NidhCthon/exalted-essence-charm-muncher/blob/main/LICENSE",
+        "bugs": "https://github.com/NidhCthon/exalted-essence-charm-muncher/issues",
         "relationships": {
             "systems": [{
                 "id": SYSTEM_ID,

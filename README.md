@@ -13,7 +13,7 @@ Targets the [Exalted Essence system](https://github.com/Aliharu/Foundry-ExEss)
 
 ## What you get
 
-With all three books, 1,852 items across 22 packs:
+With all four books, 1,954 documents across 25 packs:
 
 | Pack | Items |
 |---|---|
