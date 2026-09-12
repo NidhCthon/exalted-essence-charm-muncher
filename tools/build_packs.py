@@ -6,6 +6,7 @@ hand. Regenerating is safe: document _ids are derived from charm names, so a
 rebuild updates entries in place instead of duplicating them.
 """
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -16,6 +17,10 @@ MODULE = ROOT / "module"
 CLI = ROOT / "node_modules" / "@foundryvtt" / "foundryvtt-cli" / "fvtt.mjs"
 
 MODULE_ID = "exalted-essence-charms"
+VERSION = "0.5.0"
+# Where the built module is served from for Foundry to install and update.
+# Loopback by default: see the note beside the manifest below.
+MODULE_HOST = os.environ.get("MODULE_HOST", "http://127.0.0.1:8088")
 
 # Packs of Actors rather than Items.
 ACTOR_PACKS = {"antagonists"}
@@ -83,10 +88,12 @@ def main():
         })
         print("  {:4d}  {}".format(count, name))
 
-    # No manifest or download URL. Those would point Foundry at a published
-    # zip of the packs, and the packs are the publisher's text - see NOTICE.
-    # The module is built on the machine that owns the books and installed
-    # from there.
+    # The manifest and download URLs are deliberately loopback-only. Foundry
+    # fetches them from its own server process, so they never need to be
+    # reachable from outside the box - and the packs are the publisher's
+    # text, which NOTICE says is not to be redistributed. A public release
+    # would be exactly that, so there is not one. Override the host with
+    # MODULE_HOST if the module server runs somewhere else.
     manifest = {
         "id": MODULE_ID,
         "title": "Exalted Essence - Charms",
@@ -94,13 +101,16 @@ def main():
             "Charms, Martial Arts, and Evocations from Exalted Essence as "
             "drag-and-drop compendium items for the Exalted Essence system."
         ),
-        "version": "0.5.0",
+        "version": VERSION,
         "compatibility": {"minimum": "14", "verified": "14"},
         "authors": [{"name": "NidhCthon"}],
         "url": "https://github.com/NidhCthon/exalted-essence-charm-muncher",
         "readme": "https://github.com/NidhCthon/exalted-essence-charm-muncher#readme",
         "license": "https://github.com/NidhCthon/exalted-essence-charm-muncher/blob/main/LICENSE",
         "bugs": "https://github.com/NidhCthon/exalted-essence-charm-muncher/issues",
+        "manifest": "{}/{}/module.json".format(MODULE_HOST, MODULE_ID),
+        "download": "{}/{}/module-{}.zip".format(
+            MODULE_HOST, MODULE_ID, VERSION),
         "relationships": {
             "systems": [{
                 "id": SYSTEM_ID,
