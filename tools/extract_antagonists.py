@@ -91,6 +91,9 @@ POOL_RE = re.compile(
 QUALITIES_RE = re.compile(r"\b(ATTACKS AND QUALITIES|QUALITIES|ATTACKS)\b")
 WEAPON_RE = re.compile(r"\bWeapon\s*:\s*", re.I)
 DRILL_WORD_RE = re.compile(r"\bDrill\s*:\s*([A-Za-z]+)", re.I)
+# A page number, set twice the way the running foot is. It carries no
+# meaning into a description, where it reads as a stray number.
+FOLIO_RE = re.compile(r"^\d{1,4}$")
 FOOTER_RE = re.compile(r"CHAPTER [A-Z]+:|Mortals and Exalted|Gods and Monsters"
                        r"|Exalted Antagonists|Strange Beasts", re.I)
 
@@ -359,6 +362,8 @@ def extract(doc, book, first, last, profile, dump=None):
         elif (profile.variant[1] and profile.variant[0] <= size <= profile.variant[1]
               and text.lower().startswith("variant")):
             current["variants"].append({"name": text.rstrip(SOFT), "notes": []})
+        elif FOLIO_RE.match(text):
+            continue                      # a page number, not description
         elif current["variants"]:
             current["variants"][-1]["notes"].append(text.rstrip(SOFT))
         else:

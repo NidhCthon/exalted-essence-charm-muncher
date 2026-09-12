@@ -29,6 +29,17 @@ OUT = ROOT / "data" / "packs" / "antagonists"
 ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 NUMBER = re.compile(r"-?\d+")
 
+# Some blocks print pools and defences and nothing else. Left empty those
+# panels read as an import that failed rather than as a faithful one, so they
+# say what the book does - and never invent what it does not print.
+NO_QUALITIES = "None printed."
+NO_DESCRIPTION = ("The book prints this as a stat block only - pools and "
+                  "defences, with no description beside them.")
+GROUP_NOT_PRINTED = ("The book gives this battle group its Size, Drill, "
+                     "Health and Qualities and nothing else, so its pools, "
+                     "Defense, Soak and Resolve are left at zero rather than "
+                     "borrowed from its commander.")
+
 
 def doc_id(name, book, page):
     key = "npc:{}:{}:{}".format(book, page, name)
@@ -85,7 +96,7 @@ def biography(entry):
     for variant in entry.get("variants", []):
         blocks += "<h3>{}</h3>".format(html.escape(variant["name"]))
         blocks += to_html(variant["notes"])
-    return blocks
+    return blocks or to_html([NO_DESCRIPTION])
 
 
 TABLE_MARKERS = ("DRILL", "SIZE", "DEFENSE", "HEALTH", "SOAK")
@@ -112,7 +123,7 @@ def build(entry):
     # A battle group is the entry that carries Size, or prints a Drill/Size
     # table.
     battlegroup = "size" in stats or tabled
-    qualities = entry.get("qualities", "")
+    qualities = entry.get("qualities", "") or NO_QUALITIES
     if tabled:
         # Its numbers could only have come from neighbouring prose, so do not
         # pretend to know them.
@@ -203,6 +214,7 @@ def build_group(entry, box, index):
     if box["drill_name"]:
         notes.append("Drill: {} (+{}).".format(box["drill_name"], box["drill"]))
     notes.append(box["text"])
+    notes.append(GROUP_NOT_PRINTED)
 
     return {
         "_id": identifier,
@@ -233,7 +245,7 @@ def build_group(entry, box, index):
             "size": {"value": box["size"]},
             "drill": {"value": box["drill"]},
             "commandbonus": {"value": 0},
-            "qualities": box["qualities"],
+            "qualities": box["qualities"] or NO_QUALITIES,
         },
         "prototypeToken": {
             "name": name,
