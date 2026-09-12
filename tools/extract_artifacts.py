@@ -108,7 +108,9 @@ def entries(doc, book, first, last):
             if not current["form"]:
                 current["form"] = clean(text)
             else:
-                current["body"].append(clean(text))
+                # Kept as the span gave it, hyphen marker and all, so the
+                # builder can rejoin a word broken across two spans.
+                current["body"].append(text)
 
     flush(last)
     # An artifact is an entry with a Type line. Anything else on these pages

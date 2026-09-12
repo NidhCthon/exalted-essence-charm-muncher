@@ -30,6 +30,8 @@ import json
 import re
 from pathlib import Path
 
+from extract_antagonists import join_spans
+
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "data" / "artifacts.raw.json"
 OUT = ROOT / "data" / "packs"
@@ -104,7 +106,7 @@ def description(entry, derived):
     parts = []
     if entry["form"]:
         parts.append(entry["form"])
-    parts.extend(entry["body"])
+    parts.append(join_spans(entry["body"]))
     if entry["slots"]:
         parts.append("Hearthstone slots: {}".format(entry["slots"]))
     parts.append("Type: {}. Tags: {}.".format(entry["type"], entry["tags"]))

@@ -40,6 +40,7 @@ LABELS = {
     "shaping-rituals": "Essence: Shaping Rituals",
     "antagonists": "Essence: Antagonists",
     "artifacts": "Essence: Artifacts",
+    "hearthstones": "Essence: Hearthstones",
 }
 
 
