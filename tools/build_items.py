@@ -254,6 +254,65 @@ SOURCES = [
 ]
 
 
+# Two prerequisite lines spell a charm differently from that charm's own
+# heading, so the pill cannot find it. Both are in the same pack as the charm
+# that needs them and both are unmistakable, so they are corrected here.
+#
+# A third is left alone: "Silken Rope Trick" requires "Eternal Infatuation
+# Depths, Into Infinite Depths", and no charm has the first name. The likely
+# referent is "Eternal Infatuation Dance", with "Depths" carried over from
+# the name beside it - but likely is not certain, and a pill that opens the
+# wrong charm is worse than a line of text that names the right one.
+PREREQUISITE_NAME_FIXES = {
+    "ghostly sentinel technic": "Ghostly Sentinel Technique",
+    "blood-and-glory exhoration": "Blood-and-Glory Exhortation",
+}
+
+
+def link_prerequisites(packs):
+    """Point each prerequisite pill at the charm it names.
+
+    build() records a named prerequisite as a pill with no id, which the
+    sheet renders but cannot open. The system resolves a pill by looking the
+    id up in the pack the charm itself belongs to, so only a prerequisite in
+    the same pack can resolve - and one prerequisite in the books names a
+    charm from another pack.
+
+    A pill that cannot resolve is worse than no pill: it renders as something
+    to click that errors. Those are dropped, and the name stays in the
+    prerequisites text where it was already written, so nothing is lost.
+    """
+    def key(text):
+        # A prerequisite does not always hyphenate a charm's name the way the
+        # charm's own heading does, so match on the words alone.
+        return re.sub(r"[^a-z0-9]", "", text.lower())
+
+    linked, dropped = 0, []
+    for name, items in packs.items():
+        index = {}
+        for item in items:
+            index.setdefault(key(item["name"]), (item["_id"], item["name"]))
+
+        for item in items:
+            pills = item["system"].get("charmprerequisites") or []
+            resolved = []
+            for pill in pills:
+                named = PREREQUISITE_NAME_FIXES.get(
+                    pill["name"].strip().lower(), pill["name"])
+                found = index.get(key(named))
+                if found and found[0] != item["_id"]:
+                    # Labelled with the charm's own name rather than the
+                    # spelling the prerequisite line used: the two differ in
+                    # hyphenation often enough that a pill would otherwise
+                    # open a charm it does not appear to name.
+                    resolved.append({"id": found[0], "name": found[1]})
+                    linked += 1
+                else:
+                    dropped.append((item["name"], pill["name"]))
+            item["system"]["charmprerequisites"] = resolved
+    return linked, dropped
+
+
 def main():
     packs = {}
     for book, path in SOURCES:
@@ -263,6 +322,11 @@ def main():
         for record in json.loads(path.read_text(encoding="utf-8")):
             record.setdefault("book", book)
             packs.setdefault(pack_name(record["section"]), []).append(build(record))
+
+    linked, dropped = link_prerequisites(packs)
+    print("prerequisite pills linked : {}".format(linked))
+    print("  dropped as unresolvable : {}  {}".format(
+        len(dropped), dropped[:2]))
 
     if OUT.exists():
         for stale in OUT.rglob("*.json"):
