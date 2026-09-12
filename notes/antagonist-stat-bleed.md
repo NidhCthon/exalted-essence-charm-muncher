@@ -89,6 +89,13 @@ The jumpstart prints its one group a third way again, with a short "Health"
 label and a Drill given as a word with no modifier in brackets. Both are
 handled.
 
+A caveat on the jumpstart generally: it was written against an earlier draft
+of the rules than the core book. Where its stat blocks are laid out
+differently, or where a number or a quality does not match what the core
+book would give the same creature, that is the reason. Its actors are
+imported as printed, not reconciled to the core rules, so treat them as the
+jumpstart's own versions rather than as errors to correct.
+
 ## Verification
 
     ../.venv/Scripts/python.exe verify_antagonists.py
