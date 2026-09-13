@@ -94,6 +94,14 @@ BOOKS = {
         anchor_page=41,
         anchor_text="CHAPTER TWO: TOMB OF MEMORY",
     ),
+    "stg": Book(
+        key="stg",
+        title="Exalted Essence Storyteller's Guide (draft preview)",
+        env_var="ESSENCE_STG_PDF",
+        page_count=228,
+        anchor_page=72,
+        anchor_text="Essence Combat Reforged",
+    ),
 }
 
 

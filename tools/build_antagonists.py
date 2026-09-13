@@ -35,6 +35,11 @@ NUMBER = re.compile(r"-?\d+")
 NO_QUALITIES = "None printed."
 NO_DESCRIPTION = ("The book prints this as a stat block only - pools and "
                   "defences, with no description beside them.")
+PARTIAL = ("STATS INCOMPLETE: this entry's stat block is interrupted in the "
+           "book by other text, and its defensive values could not be read "
+           "with confidence. The pools and anything else below are as "
+           "printed; enter Defense, Soak, Hardness and Resolve from the page.")
+
 GROUP_NOT_PRINTED = ("The book gives this battle group its Size, Drill, "
                      "Health and Qualities and nothing else, so its pools, "
                      "Defense, Soak and Resolve are left at zero rather than "
@@ -130,9 +135,16 @@ def spell_links(entry, index):
     return "<h3>Spells</h3><p>{}</p>".format(", ".join(links))
 
 
+def partial_import(entry):
+    """Pools but no Defense: something interrupted the stat block."""
+    return bool(entry.get("pools")) and "defense" not in entry.get("stats", {})
+
+
 def biography(entry, spells=None):
     """Prose, the weapon line, the spell list, and any variants."""
     parts = list(entry["body"])
+    if partial_import(entry):
+        parts.insert(0, PARTIAL)
     if prints_stats_as_a_table(entry):
         parts.insert(0, "STATS NOT IMPORTED: this battle group prints its "
                         "Defense, Health, Soak, Drill and Size as a table, "
@@ -345,6 +357,8 @@ def main():
         (OUT / "{}.json".format(actor["_id"])).write_text(
             json.dumps(actor, indent=2, ensure_ascii=False), encoding="utf-8")
 
+    partial = sum(1 for e in entries if partial_import(e))
+    print("flagged as incomplete : {}".format(partial))
     linked = sum(1 for a in actors if "@UUID[" in a["system"]["biography"])
     print("actors written : {}".format(len(actors)))
     print("spell lists    : {} linked from {} spells indexed".format(

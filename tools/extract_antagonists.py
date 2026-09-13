@@ -14,8 +14,11 @@ anything the charm extractor handles:
   stat blocks. Each is kept as text on its parent rather than invented as a
   separate actor, because applying prose adjustments is guesswork.
 
-Covers the core rulebook and Pillars of Creation, which share a type scale,
-and the Tomb of Memory jumpstart, which does not - see Profile below.
+Covers the core rulebook and Pillars of Creation, which share a type scale;
+the Tomb of Memory jumpstart, which does not; and the Storyteller's Guide
+draft, which is set in a word processor's fonts and names an antagonist at
+the same size as its stat block, so there the font is what tells them
+apart. See Profile below.
 """
 import argparse
 import json
@@ -40,21 +43,51 @@ class Profile:
     sizes cannot be module constants shared by every book.
     """
 
-    def __init__(self, name, stat, variant=(0.0, 0.0), banner=19.0):
+    def __init__(self, name, stat, variant=(0.0, 0.0), banner=19.0,
+                 name_font=None, stat_font=None, max_pages=2):
         self.name = name
         self.stat = stat
         self.variant = variant      # (0, 0) where a book has no variants
         self.banner = banner        # above a name, so banners divide a page
+        # A draft manuscript is set in a word processor's fonts rather than
+        # the published design, and sets an antagonist's name and its stat
+        # block at the same size. Where that is so, the font is what tells
+        # them apart and these are set instead of reading the sizes.
+        self.name_font = name_font
+        self.stat_font = stat_font
+        # How many pages one entry may cover before that looks like runaway
+        # collection rather than a long entry. The published books are
+        # compact; a draft manuscript runs an antagonist over several pages.
+        self.max_pages = max_pages
+
+    def classify(self, size, font):
+        """"name", "stat" or None for this span."""
+        if self.name_font:
+            if self.name_font in font:
+                return "name"
+            if self.stat_font in font:
+                return "stat"
+            return None
+        if self.name[0] <= size <= self.name[1]:
+            return "name"
+        if self.stat[0] <= size <= self.stat[1]:
+            return "stat"
+        return None
 
 
 RULEBOOK = Profile(name=(17.0, 18.4), stat=(10.6, 11.2), variant=(13.5, 14.3))
 JUMPSTART = Profile(name=(13.6, 14.2), stat=(10.2, 11.2))
+# The Storyteller's Guide draft: names in Arial, stat blocks in Calibri, both
+# at the same size, with the prose in Times.
+DRAFT = Profile(name=(13.6, 14.2), stat=(13.6, 14.2), banner=17.0,
+                name_font="Arial", stat_font="Calibri", max_pages=5)
 
 # (book key, first page, last page, profile) - pages 1-indexed, inclusive.
 RANGES = [
     ("core", 316, 341, RULEBOOK),
     ("pillars", 168, 199, RULEBOOK),
     ("tomb", 41, 44, JUMPSTART),
+    ("stg", 126, 228, DRAFT),
 ]
 
 SOFT = "­"
@@ -89,7 +122,12 @@ NUM_RE = re.compile(r"\b(" + "|".join(NUM_LABELS) + r")\s*:?\s*(\d+)", re.I)
 # import with no pools at all.
 POOL_RE = re.compile(
     r"\b(Primary|Secondary|Tertiary)\s+Pool\s*[:(]?\s*(\d+)\)?\s*:?\s*", re.I)
-QUALITIES_RE = re.compile(r"\b(ATTACKS AND QUALITIES|QUALITIES|ATTACKS)\b")
+# The published books set this heading in capitals; the draft manuscript
+# sets it in title case. Spelled out rather than matched case-insensitively,
+# because a case-insensitive "attacks" would match the ordinary word in prose
+# and cut a stat block short wherever it appeared.
+QUALITIES_RE = re.compile(
+    r"\b(ATTACKS AND QUALITIES|Attacks and Qualities|QUALITIES|ATTACKS)\b")
 # Plural too: an antagonist carrying more than one is given a "Weapons:"
 # line, and matching only the singular left those stats inside qualities.
 WEAPON_RE = re.compile(r"\bWeapons?\s*:\s*", re.I)
@@ -169,8 +207,16 @@ def stat_block_of(text):
     from the block keeps prose out by construction rather than relying on the
     block happening to come first.
     """
+    # A marker that appears before any stat does not belong to this block:
+    # an entry can open with the tail of the one above it, and truncating
+    # there threw away every stat that followed. Measure from the first stat
+    # instead, and take the first marker after it.
+    first = NUM_RE.search(text)
+    if first is None:
+        return text
     ends = [match.start() for match in
-            (QUALITIES_RE.search(text), WEAPON_RE.search(text)) if match]
+            (QUALITIES_RE.search(text, first.start()),
+             WEAPON_RE.search(text, first.start())) if match]
     return text[:min(ends)] if ends else text
 
 
@@ -342,12 +388,13 @@ def extract(doc, book, first, last, profile, dump=None):
         }
         entries.append(current)
 
-    stream = list(spans(doc, first, last, profile.banner))
-    for index, (page, size, text) in enumerate(stream):
+    stream = list(spans(doc, first, last, profile.banner, with_font=True))
+    for index, (page, size, text, font) in enumerate(stream):
+        kind = profile.classify(size, font)
         if FOOTER_RE.search(text) and size < profile.name[0]:
             continue
 
-        if profile.name[0] <= size <= profile.name[1]:
+        if kind == "name":
             pending_name.append(text)
             continue
         # Pillars names its sub-entries at the size the core book uses for
@@ -362,7 +409,7 @@ def extract(doc, book, first, last, profile, dump=None):
         if current is None:
             continue
 
-        if profile.stat[0] <= size <= profile.stat[1]:
+        if kind == "stat":
             if TEMPLATE_HEAD.match(text) and heads_a_stat_block(stream, index):
                 pending_name.append(titlecase(text))
                 flush_name(page)
@@ -414,7 +461,7 @@ def extract(doc, book, first, last, profile, dump=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    for key in ("core", "pillars", "tomb"):
+    for key in ("core", "pillars", "tomb", "stg"):
         parser.add_argument("--{}".format(key), help="path to that PDF")
     parser.add_argument("--dump", metavar="NAME",
                         help="print the raw stat-line spans, with their page "

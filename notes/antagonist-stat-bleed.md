@@ -113,10 +113,15 @@ Exit code 1 on any finding, so it can gate a rebuild.
 
 ## Still open
 
-- There is no Essence Storyteller's Guide on this machine. What was taken for
-  one is a six-page Combat Reforged summary with no antagonists in it, so
-  that book is not pending work - it is simply absent. The Player's Guide
-  draft has antagonists on a single page and is not worth a pass.
+- The Storyteller's Guide draft IS available and is imported: 64 antagonists
+  from pp126-228. An earlier note here said it was absent, on the strength of
+  a filename search for "storyteller" and "st guide" - the file is called
+  "ExEss STG Draft Preview", which neither pattern can match. Absence found
+  by a search that could not have succeeded is not absence.
+- Two of its entries import pools but no defensive stats, because the book
+  interrupts their stat blocks with other entries' text. Both say so on their
+  own sheets rather than importing a confident zero.
+- The Player's Guide draft has antagonists on a single page; not worth a pass.
 - Battle groups carry no Defense, Soak or Resolve, because the boxes do not
   print any. That is faithful to the book rather than a gap.
 

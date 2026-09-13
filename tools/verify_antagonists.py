@@ -22,14 +22,15 @@ So this checks four sharper things instead:
 
 Exit codes: 0 clean, 1 something to look at.
 """
+import os
 import re
 import sys
 from collections import defaultdict
 
-from books import open_book
+from books import BOOKS, open_book
 from extract_antagonists import (DRILL_WORD_RE, DRILL_WORDS, NUM_RE,
                                  QUALITIES_RE, RANGES, WEAPON_RE, extract,
-                                 join_spans)
+                                 join_spans, stat_block_of)
 
 
 def printed_on(doc, pages):
@@ -58,15 +59,11 @@ def printed_on(doc, pages):
 def stat_block_only(statline):
     """The stat line up to where the prose starts.
 
-    Past that point a trait named with a number is ordinary text - an
-    evocation prerequisite naming a trait and a value, say - and not a second
-    stat block. parse_stats() already relies on the block coming first; this
-    check has to agree with it or it reports noise.
+    This is the extractor's own boundary, imported rather than restated: a
+    check that draws the line somewhere else reports noise, or misses what it
+    was meant to catch.
     """
-    text = join_spans([span for _, span in statline])
-    ends = [match.start() for match in
-            (QUALITIES_RE.search(text), WEAPON_RE.search(text)) if match]
-    return text[:min(ends)] if ends else text
+    return stat_block_of(join_spans([span for _, span in statline]))
 
 
 def merged_labels(statline):
@@ -82,6 +79,10 @@ def main():
     checked = 0
 
     for book, first, last, profile in RANGES:
+        # Books are optional, as they are everywhere else in this pipeline.
+        if not os.environ.get(BOOKS[book].env_var):
+            print("skipping {}: no PDF supplied".format(book))
+            continue
         doc, path = open_book(book, None)
         print("checking {}: {}".format(book, path.name))
 
@@ -123,7 +124,7 @@ def main():
                 print("  INCOMPLETE {:45s} p{}  pools but no defensive stats"
                       .format(name, pages))
 
-            if len(pages) > 2:
+            if len(pages) > profile.max_pages:
                 problems += 1
                 print("  SPREAD    {:46s} p{}".format(name, pages))
 
