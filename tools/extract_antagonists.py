@@ -135,6 +135,11 @@ DRILL_WORD_RE = re.compile(r"\bDrill\s*:\s*([A-Za-z]+)", re.I)
 # A page number, set twice the way the running foot is. It carries no
 # meaning into a description, where it reads as a stray number.
 FOLIO_RE = re.compile(r"^\d{1,4}$")
+# The draft manuscript sets one quality's text in the same font it names
+# antagonists in, which turned a whole paragraph into a name - and into a
+# file name too long for the filesystem when the pack was read back. No
+# antagonist in any of these books is named at anything like this length.
+MAX_NAME = 80
 FOOTER_RE = re.compile(r"CHAPTER [A-Z]+:|Mortals and Exalted|Gods and Monsters"
                        r"|Exalted Antagonists|Strange Beasts", re.I)
 
@@ -375,6 +380,12 @@ def extract(doc, book, first, last, profile, dump=None):
         name = clean(join_spans(pending_name))
         pending_name = []
         if len(name) < 3 or FOOTER_RE.search(name):
+            return
+        if len(name) > MAX_NAME:
+            # Prose that happens to be set in the naming font. Keep it with
+            # the entry it describes rather than dropping it.
+            if current is not None:
+                current["body"].append(name)
             return
         current = {
             "name": dedupe_doubled(name),
