@@ -17,7 +17,7 @@ MODULE = ROOT / "module"
 CLI = ROOT / "node_modules" / "@foundryvtt" / "foundryvtt-cli" / "fvtt.mjs"
 
 MODULE_ID = "exalted-essence-charms"
-VERSION = "0.7.0"
+VERSION = "0.7.1"
 # Where the built module is served from for Foundry to install and update.
 # Loopback by default: see the note beside the manifest below.
 MODULE_HOST = os.environ.get("MODULE_HOST", "http://127.0.0.1:8088")
@@ -25,6 +25,45 @@ MODULE_HOST = os.environ.get("MODULE_HOST", "http://127.0.0.1:8088")
 # Packs of Actors rather than Items.
 ACTOR_PACKS = {"antagonists"}
 SYSTEM_ID = "exaltedessence"
+
+# Foundry builds these folders in the compendium sidebar once per world, so
+# twenty-six packs arrive grouped rather than as one long list. A pack named
+# here that does not exist is simply ignored, which is what should happen
+# when a book was not supplied and its packs were never built.
+#
+# Evocations sit with the artifacts rather than with the charms. They are
+# charm documents, but you look one up because of the artifact it belongs
+# to, which is where a reader will go for it.
+PACK_FOLDERS = [
+    {
+        "name": "Charms",
+        "color": "#8a6d2f",
+        "packs": [
+            "universal-charms", "solar-charms", "lunar-charms",
+            "abyssal-charms", "alchemical-charms", "dragon-blooded-charms",
+            "getimian-charms", "infernal-charms", "liminal-charms",
+            "sidereal-charms", "exigent-charms", "architect-charms",
+            "sovereign-charms", "strawmaiden-janest-charms",
+            "dragon-king-charms", "dream-souled-charms", "umbral-charms",
+        ],
+    },
+    {
+        "name": "Martial Arts",
+        "color": "#7a3b3b",
+        "packs": ["martial-arts", "sidereal-martial-arts"],
+    },
+    {
+        "name": "Sorcery",
+        "color": "#3f5d7a",
+        "packs": ["sorcery-spells", "shaping-rituals"],
+    },
+    {
+        "name": "Artifacts & Gear",
+        "color": "#2f6b5a",
+        "packs": ["artifacts", "evocations", "hearthstones", "equipment"],
+    },
+]
+
 
 LABELS = {
     "universal-charms": "Essence: Universal Charms",
@@ -120,6 +159,13 @@ def main():
             }]
         },
         "packs": packs,
+        # Only folders that still have a pack in this build, so a partial
+        # build does not declare an empty one.
+        "packFolders": [
+            dict(folder, packs=[p for p in folder["packs"] if p in names])
+            for folder in PACK_FOLDERS
+            if any(p in names for p in folder["packs"])
+        ],
     }
     (MODULE / "module.json").write_text(
         json.dumps(manifest, indent=2), encoding="utf-8"
