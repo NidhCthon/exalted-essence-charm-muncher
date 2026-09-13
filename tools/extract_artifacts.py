@@ -31,14 +31,20 @@ from extract_antagonists import join_spans, spans
 
 OUT = Path(__file__).resolve().parent.parent / "data" / "artifacts.raw.json"
 
-# (book key, first page, last page) - 1-indexed, inclusive.
+# (book, first page, last page, body size, naming font or None), pages
+# 1-indexed and inclusive. The published books set an artifact's prose
+# smaller than the draft manuscript does, and the draft sets its labels and
+# their values at the size it names artifacts in - so there only the font
+# separates a name from everything else.
 RANGES = [
-    ("core", 347, 351),
-    ("pillars", 202, 206),
+    ("core", 347, 351, (9.5, 10.4), None),
+    ("pillars", 202, 206, (9.5, 10.4), None),
+    # "ArialMT" and not "Arial": the flavour text is Arial-ItalicMT, which
+    # a substring match on "Arial" would read as a name.
+    ("playersguide", 123, 123, (10.6, 11.4), "ArialMT"),
 ]
 
 NAME_SIZE = (13.5, 14.4)
-BODY_SIZE = (9.5, 10.4)
 # The "Greater Wonders" heading is set at the size an antagonist's name uses,
 # but it does not divide the page the way a chapter banner does. Treating it
 # as one reorders the columns around it and files an artifact's stat line
@@ -52,9 +58,11 @@ LABEL_RE = re.compile(r"^(Type|Tags|Hearthstone\s+slots?)\s*:\s*$", re.I)
 # "Volcano Cutter (Primary)" marks which book line an artifact belongs to,
 # not part of its name.
 SUFFIX_RE = re.compile(r"\s*\((?:Primary|Primary Only)\)\s*$", re.I)
+# A draft carries notes to whoever lays the book out. They are not content.
+EDITORIAL_RE = re.compile(r"CALL ?OUT BOX|\[?TO ?DO\]?|XX+", re.I)
 
 
-def entries(doc, book, first, last):
+def entries(doc, book, first, last, body_size, name_font=None):
     """Split the pages into artifacts, one per name."""
     found, current, pending = [], None, []
 
@@ -79,12 +87,17 @@ def entries(doc, book, first, last):
         found.append(current)
 
     label = None
-    for page, size, text in spans(doc, first, last, BANNER_MIN):
-        if NAME_SIZE[0] <= size <= NAME_SIZE[1]:
+    for page, size, text, font in spans(doc, first, last, BANNER_MIN,
+                                        with_font=True):
+        named = (name_font in font if name_font
+                 else NAME_SIZE[0] <= size <= NAME_SIZE[1])
+        if named:
             pending.append(text)
             continue
         flush(page)
-        if current is None or not (BODY_SIZE[0] <= size <= BODY_SIZE[1]):
+        if current is None or not (body_size[0] <= size <= body_size[1]):
+            continue
+        if EDITORIAL_RE.search(text):
             continue
 
         # A label and its value are often separate spans.
@@ -120,18 +133,18 @@ def entries(doc, book, first, last):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    for key in ("core", "pillars"):
+    for key in ("core", "pillars", "playersguide"):
         parser.add_argument("--{}".format(key), help="path to that PDF")
     args = parser.parse_args()
 
     all_entries = []
-    for book, first, last in RANGES:
+    for book, first, last, body_size, name_font in RANGES:
         if not (getattr(args, book, None) or os.environ.get(BOOKS[book].env_var)):
             print("skipping {}: no PDF supplied".format(book))
             continue
         doc, path = open_book(book, getattr(args, book, None))
         print("reading {}: {}".format(book, path.name))
-        found = entries(doc, book, first, last)
+        found = entries(doc, book, first, last, body_size, name_font)
         print("  artifacts: {}".format(len(found)))
         all_entries.extend(found)
 

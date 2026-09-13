@@ -34,6 +34,9 @@ BUILDERS = [
     # After the artifacts: it reads their category tables and tag
     # vocabulary rather than keeping a second copy.
     ("build_equipment.py", "map basic equipment to Foundry Items"),
+    # After the artifacts: it writes into their pack, which that
+    # builder clears.
+    ("build_warstriders.py", "map warstriders to Foundry Items"),
     ("build_packs.py", "compile LevelDB packs and the manifest"),
 ]
 
@@ -41,9 +44,10 @@ BUILDERS = [
 MULTI_BOOK = [
     ("extract_antagonists.py", ("core", "pillars", "tomb"),
      "antagonists from every book"),
-    ("extract_artifacts.py", ("core", "pillars"), "artifacts"),
-    ("extract_hearthstones.py", ("core", "pillars"), "hearthstones"),
+    ("extract_artifacts.py", ("core", "pillars", "playersguide"), "artifacts"),
+    ("extract_hearthstones.py", ("core", "pillars", "tomb"), "hearthstones"),
     ("extract_equipment.py", ("core",), "basic equipment"),
+    ("extract_warstriders.py", ("pillars",), "warstriders"),
 ]
 
 ENV_VARS = {

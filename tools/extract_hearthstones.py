@@ -23,14 +23,15 @@ from extract_antagonists import join_spans, spans
 
 OUT = Path(__file__).resolve().parent.parent / "data" / "hearthstones.raw.json"
 
-# (book key, first page, last page) - 1-indexed, inclusive.
+# (book key, first page, last page, name size) - pages 1-indexed, inclusive.
+# The rulebooks name a hearthstone larger than the jumpstart does, so what
+# size means "name" belongs to the book rather than to the module.
 RANGES = [
-    ("core", 353, 354),
-    ("pillars", 200, 201),
+    ("core", 353, 354, (17.0, 18.4)),
+    ("pillars", 200, 201, (17.0, 18.4)),
+    ("tomb", 51, 51, (13.6, 14.2)),
 ]
 
-NAME_SIZE = (17.0, 18.4)
-SUBTITLE_SIZE = (11.5, 12.3)
 BODY_SIZE = (9.5, 10.4)
 # Only the chapter banner divides these pages; a name must not.
 BANNER_MIN = 24.0
@@ -40,7 +41,7 @@ SUBTITLE_RE = re.compile(
     r"\(\s*([^,]+?)\s*,\s*(\w+)\s+Hearthstone\s*\)", re.I)
 
 
-def entries(doc, book, first, last):
+def entries(doc, book, first, last, name_size):
     found, current, pending = [], None, []
 
     def flush(page):
@@ -63,19 +64,22 @@ def entries(doc, book, first, last):
         found.append(current)
 
     for page, size, text in spans(doc, first, last, BANNER_MIN):
-        if NAME_SIZE[0] <= size <= NAME_SIZE[1]:
+        if name_size[0] <= size <= name_size[1]:
             pending.append(text)
             continue
         flush(page)
         if current is None:
             continue
 
-        if SUBTITLE_SIZE[0] <= size <= SUBTITLE_SIZE[1]:
+        # The bracketed aspect and rating is what marks the subtitle. The
+        # rulebooks set it a size above the body; the jumpstart sets it in the
+        # body size, so recognising it by what it says rather than by how big
+        # it is covers both.
+        match = SUBTITLE_RE.search(text)
+        if match and not current["subtitle"]:
             current["subtitle"] = clean(text)
-            match = SUBTITLE_RE.search(current["subtitle"])
-            if match:
-                current["aspect"] = match.group(1).strip()
-                current["rating"] = match.group(2).strip().title()
+            current["aspect"] = match.group(1).strip()
+            current["rating"] = match.group(2).strip().title()
         elif BODY_SIZE[0] <= size <= BODY_SIZE[1]:
             # Not clean()ed again: that strips the hyphen marking a word
             # broken across spans, and the builder needs it to rejoin them.
@@ -89,18 +93,18 @@ def entries(doc, book, first, last):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    for key in ("core", "pillars"):
+    for key in ("core", "pillars", "tomb"):
         parser.add_argument("--{}".format(key), help="path to that PDF")
     args = parser.parse_args()
 
     all_entries = []
-    for book, first, last in RANGES:
+    for book, first, last, name_size in RANGES:
         if not (getattr(args, book, None) or os.environ.get(BOOKS[book].env_var)):
             print("skipping {}: no PDF supplied".format(book))
             continue
         doc, path = open_book(book, getattr(args, book, None))
         print("reading {}: {}".format(book, path.name))
-        found = entries(doc, book, first, last)
+        found = entries(doc, book, first, last, name_size)
         print("  hearthstones: {}".format(len(found)))
         all_entries.extend(found)
 

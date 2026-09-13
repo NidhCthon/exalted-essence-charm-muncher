@@ -80,7 +80,7 @@ JUMPSTART = Profile(name=(13.6, 14.2), stat=(10.2, 11.2))
 # The Storyteller's Guide draft: names in Arial, stat blocks in Calibri, both
 # at the same size, with the prose in Times.
 DRAFT = Profile(name=(13.6, 14.2), stat=(13.6, 14.2), banner=17.0,
-                name_font="Arial", stat_font="Calibri", max_pages=5)
+                name_font="ArialMT", stat_font="Calibri", max_pages=5)
 
 # (book key, first page, last page, profile) - pages 1-indexed, inclusive.
 RANGES = [

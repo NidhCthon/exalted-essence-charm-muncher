@@ -95,8 +95,10 @@ def weapon_items(owner, text):
     items = []
     for index, weapon in enumerate(parse_weapons(text)):
         identifier = item_id(owner, weapon["name"], index)
-        ranged = (weapon["ranged"] or "ranged" in weapon["tags"]
-                  or "thrown" in weapon["tags"])
+        # The ranged tag, or a printed range, and not merely thrown: a
+        # weapon tagged melee and thrown is a melee weapon you can throw.
+        ranged = ((weapon["ranged"] or "ranged" in weapon["tags"])
+                  and "melee" not in weapon["tags"])
         items.append({
             "_id": identifier,
             "name": weapon["name"],
