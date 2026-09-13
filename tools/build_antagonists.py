@@ -20,6 +20,7 @@ import re
 from collections import Counter
 from pathlib import Path
 
+from build_weapons import weapon_items
 from extract_battle_groups import parse_boxes
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -153,7 +154,9 @@ def biography(entry, spells=None):
         parts.insert(1, entry.get("qualities", ""))
 
     weapon = entry.get("weapon")
-    if weapon:
+    if weapon and not weapon_items(entry["name"], weapon):
+        # Only as text when it could not be read as weapons - otherwise the
+        # sheet would show the same thing twice.
         parts.append("Weapon: {}".format(weapon))
 
     blocks = to_html(parts)
@@ -197,6 +200,13 @@ def build(entry, spells=None):
     stats = entry["stats"]
     pools = entry["pools"]
     identifier = doc_id(entry["name"], entry["book"], entry["page"])
+
+    # An embedded document needs its own key, the way a top-level one does,
+    # and the packer fails outright without it rather than skipping the
+    # document quietly.
+    weapons = weapon_items(entry["name"], entry.get("weapon", ""))
+    for weapon in weapons:
+        weapon["_key"] = "!actors.items!{}.{}".format(identifier, weapon["_id"])
 
     levels = number(stats.get("health levels"))
     tabled = prints_stats_as_a_table(entry)
@@ -245,6 +255,15 @@ def build(entry, spells=None):
             "defense": {"value": number(stats.get("defense", stats.get("defence")))},
             "soak": {"value": number(stats.get("soak"))},
             "hardness": {"value": number(stats.get("hardness"))},
+            # Combat Reforged replaces Hardness with Poise and gives an
+            # antagonist Poise equal to their Hardness. Leaving it unset left
+            # every antagonist showing the system's default of 3 - and told
+            # the turn panel the wrong number to Break them on.
+            "poise": {
+                "value": number(stats.get("hardness")),
+                "min": 0,
+                "max": number(stats.get("hardness")),
+            },
             "resolve": {"value": number(stats.get("resolve"))},
             "essence": {"value": number(stats.get("essence"), 1)},
             "size": {"value": number(stats.get("size"))},
@@ -258,7 +277,7 @@ def build(entry, spells=None):
             "disposition": -1,
             "sight": {"enabled": False},
         },
-        "items": [],
+        "items": weapons,
         "effects": [],
         "folder": None,
         "sort": 0,
@@ -320,6 +339,8 @@ def build_group(entry, box, index):
             "defense": {"value": 0},
             "soak": {"value": 0},
             "hardness": {"value": 0},
+            # Battle groups have no Poise at all under Combat Reforged.
+            "poise": {"value": 0, "min": 0, "max": 0},
             "resolve": {"value": 0},
             "essence": {"value": 1},
             "size": {"value": box["size"]},
@@ -357,6 +378,9 @@ def main():
         (OUT / "{}.json".format(actor["_id"])).write_text(
             json.dumps(actor, indent=2, ensure_ascii=False), encoding="utf-8")
 
+    armed = sum(1 for a in actors if a["items"])
+    weapons = sum(len(a["items"]) for a in actors)
+    print("weapons as items      : {} on {} actors".format(weapons, armed))
     partial = sum(1 for e in entries if partial_import(e))
     print("flagged as incomplete : {}".format(partial))
     linked = sum(1 for a in actors if "@UUID[" in a["system"]["biography"])
