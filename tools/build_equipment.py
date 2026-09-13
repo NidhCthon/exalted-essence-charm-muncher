@@ -162,7 +162,10 @@ def build_armour(name, weight, soak, penalty, hardness, note):
             "soak": soak,
             "penalty": penalty,
             "hardness": hardness,
-            "poise": 0,
+            # As above: Hardness is Poise under Combat Reforged. Mundane
+            # armour grants no Hardness, so this is zero either way - it is
+            # set from the same place so the two cannot drift apart.
+            "poise": hardness,
             "tags": "",
             "equipped": False,
             "weight": weight,

@@ -151,7 +151,10 @@ def build(entry):
                 "soak": soak,
                 "penalty": penalty,
                 "hardness": hardness,
-                "poise": 0,
+                # Combat Reforged replaces Hardness with Poise and says every
+                # effect that modified one now modifies the other, so a suit
+                # that grants Hardness grants that much Poise.
+                "poise": hardness,
                 "tags": entry["tags"],
                 "equipped": False,
                 "weight": category if category in ("light", "heavy") else "other",
