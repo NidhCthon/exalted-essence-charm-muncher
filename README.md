@@ -151,6 +151,13 @@ and 50 of 54 named prerequisites resolve — the 4 that do not are not charms
 
 That check is what caught the sidebar truncation bug.
 
+`tools/verify_charms.py` checks the extracted data for the marks segmentation
+errors leave behind: a charm swallowed into the body of the one before it,
+sidebar or editor's-note text inside a description, and page numbers outside
+the chapter range the extractor reads. It names each swallowed charm, never
+prints book text, and exits non-zero when anything needs looking at. Run it
+after any change to an extractor.
+
 ### Which books hold sorcery
 
 Only the core rulebook and Pillars of Creation. The Player's Guide has no
@@ -164,6 +171,36 @@ full text, not just its headings, agree:
 
 Its twenty-odd uses of the word "spell" are all prose inside Charms and
 fiction, and its ten chapters are one per Exalt type with no sorcery chapter.
+
+## Committing safely
+
+This repository is public, and everything the extractors produce is copyrighted
+book text. Book text has reached a commit here twice through `.gitignore`
+mistakes, and careful reading of `.gitignore` caught neither time. So a
+pre-commit hook checks what is actually being committed rather than trusting
+ignore rules. Enable it once per clone:
+
+```
+git config core.hooksPath tools/hooks
+```
+
+On every commit it refuses anything under `data/` or `module/` (and any
+`*.raw.json`, `*.pdf` or `*.zip`, even forced past `.gitignore`), then compares
+each staged file with your extracted text in `data/*.raw.json`. A file sharing
+three or more 8-word verbatim runs with the books — about ten consecutive words
+— is refused. It reports paths and line numbers, never the text.
+
+Deliberate exceptions, such as a stat line kept as a parser format example, are
+accepted explicitly and recorded as hashes that cannot be read back into text:
+
+```
+python tools/hooks/check_book_text.py --allow tools/some_file.py
+```
+
+Audit the whole tree, or every blob ever committed, with `--tree` or
+`--history`. On a clone that has never run the extractors there is no
+`data/*.raw.json`, so only the path rules can run; the hook says so on every
+commit rather than passing silently.
 
 ## Layout
 
@@ -180,4 +217,6 @@ tools/
   build_sorcery.py    spells and rituals -> Foundry Item documents
   build_packs.py      documents -> LevelDB packs, and module.json
   build_all.py        runs all of the above in order
+  verify_charms.py    flags charms showing a mis-segmentation signature
+  hooks/              pre-commit guard against committing book text
 ```

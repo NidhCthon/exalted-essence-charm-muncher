@@ -1,0 +1,4 @@
+# Git runs hooks through sh. A CRLF checkout (core.autocrlf=true on Windows)
+# leaves a carriage return on every line, and the hook dies before it can guard
+# anything - so pin these to LF regardless of the cloning machine's settings.
+tools/hooks/* text eol=lf

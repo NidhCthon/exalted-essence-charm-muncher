@@ -1,0 +1,23 @@
+#!/bin/sh
+# Refuse commits that contain text from the books. The logic, and why it
+# exists, is in tools/hooks/check_book_text.py.
+#
+# Enable once per clone:  git config core.hooksPath tools/hooks
+
+root=$(git rev-parse --show-toplevel)
+
+# Probe each candidate by running it, not with `command -v`. On Windows,
+# `python3` usually resolves to the Microsoft Store alias in WindowsApps: it is
+# on PATH, so `command -v` finds it, but running it only prints an install
+# prompt and fails - which made an earlier version of this hook refuse every
+# commit on a machine with a perfectly good Python installed.
+for py in "$root/.venv/Scripts/python.exe" "$root/.venv/bin/python" python3 python py; do
+  if "$py" -c "import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)" >/dev/null 2>&1; then
+    exec "$py" "$root/tools/hooks/check_book_text.py"
+  fi
+done
+
+# Fail closed. A guard that quietly stops guarding when Python goes missing is
+# the same failure as the .gitignore mistakes it replaces.
+echo "pre-commit: no working Python 3 found, so book text cannot be checked. Refusing to commit." >&2
+exit 1
