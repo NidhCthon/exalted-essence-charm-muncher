@@ -24,6 +24,13 @@ here, because this repository is public and the server is not:
                          (default /var/lib/foundryvtt)
     FOUNDRY_SERVICE      systemd unit to stop for --deploy
                          (default foundryvtt)
+    FOUNDRY_APP_DIR      Foundry's install, read for its version before --deploy
+                         (default /opt/foundryvtt/resources/app)
+
+--deploy refuses to run unless the server's Foundry is exactly CORE_VERSION
+from build_packs.py, the version stamped into every document. An older
+Foundry refuses those documents; a newer one re-migrates all of them on every
+startup after a deploy.
 """
 import argparse
 import json
@@ -33,6 +40,8 @@ import sys
 import tempfile
 import zipfile
 from pathlib import Path
+
+from build_packs import CORE_VERSION
 
 ROOT = Path(__file__).resolve().parent.parent
 MODULE = ROOT / "module"
@@ -50,6 +59,42 @@ def run(command):
     result = subprocess.run(command)
     if result.returncode != 0:
         sys.exit("failed: {}".format(" ".join(str(c) for c in command)))
+
+
+def version_tuple(version):
+    return tuple(int(part) for part in version.split("."))
+
+
+def check_core_version(ssh, app_dir, manifest):
+    """Stop before deploying documents stamped for a different Foundry."""
+    built = manifest.get("compatibility", {}).get("minimum")
+    if built != CORE_VERSION:
+        sys.exit("module/ was built for Foundry {} but build_packs.py says {}. "
+                 "Run tools/build_packs.py first.".format(built, CORE_VERSION))
+
+    result = subprocess.run(
+        ssh + ["python3 -c 'import json,sys;r=json.load(open(sys.argv[1]))"
+               "[\"release\"];print(\"{}.{}\".format(r[\"generation\"],"
+               "r[\"build\"]))' " + "{}/package.json".format(app_dir)],
+        capture_output=True,
+        text=True,
+    )
+    server = result.stdout.strip()
+    if result.returncode != 0 or not server:
+        sys.exit("could not read Foundry's version from {}/package.json on "
+                 "the server:\n{}".format(app_dir, result.stderr.strip()))
+
+    if version_tuple(server) < version_tuple(CORE_VERSION):
+        sys.exit("the server runs Foundry {}, older than CORE_VERSION {}. It "
+                 "would refuse every document. Lower CORE_VERSION in "
+                 "tools/build_packs.py and rebuild, or update Foundry."
+                 .format(server, CORE_VERSION))
+    if version_tuple(server) > version_tuple(CORE_VERSION):
+        sys.exit("the server runs Foundry {}, newer than CORE_VERSION {}. It "
+                 "would re-migrate every document on each deploy. Set "
+                 "CORE_VERSION in tools/build_packs.py to {} and rebuild."
+                 .format(server, CORE_VERSION, server))
+    print("server Foundry {} matches CORE_VERSION".format(server))
 
 
 def build_zip(manifest, into):
@@ -81,6 +126,11 @@ def main():
 
     ssh = ["ssh"] + (["-i", key] if key else []) + [host]
     scp = ["scp"] + (["-i", key] if key else [])
+
+    if args.deploy:
+        check_core_version(
+            ssh, setting("FOUNDRY_APP_DIR", "/opt/foundryvtt/resources/app"),
+            manifest)
 
     with tempfile.TemporaryDirectory() as workspace:
         staging = Path(workspace)
