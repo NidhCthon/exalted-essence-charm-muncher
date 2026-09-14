@@ -13,24 +13,24 @@ Targets the [Exalted Essence system](https://github.com/Aliharu/Foundry-ExEss)
 
 ## What you get
 
-With all four books, 1,983 documents across 26 packs:
+With all five books, 2,074 documents across 26 packs:
 
 | Pack | Items |
 |---|---|
 | Universal Charms | 162 |
-| Infernal, Alchemical, Dragon-Blooded, Sidereal | 137-141 each |
-| Abyssal, Lunar, Solar, Getimian, Liminal | 130-136 each |
-| Martial Arts | 99 |
-| Antagonists | 68 |
+| Infernal, Alchemical, Dragon-Blooded, Sidereal | 137-142 each |
+| Abyssal, Lunar, Solar, Getimian, Liminal | 131-136 each |
+| Martial Arts | 102 |
+| Antagonists | 132 |
 | Exigent, Architect, Sovereign | 52-67 each |
 | Sorcery & Necromancy Spells | 63 |
-| Evocations | 40 |
-| Sidereal Martial Arts | 31 |
+| Evocations | 45 |
+| Sidereal Martial Arts | 32 |
 | Basic Equipment | 29 |
 | Shaping Rituals | 28 |
 | Strawmaiden Janest | 25 |
-| Hearthstones | 19 |
-| Artifacts | 15 |
+| Hearthstones | 21 |
+| Artifacts and warstriders | 27 |
 | Dragon King, Dream-Souled, Umbral | 6 each |
 
 Charms carry ability, requirement, Essence, mote/anima/Power cost, prerequisite
@@ -49,9 +49,11 @@ type and Will cost. Everything uses the enum values from the system's own
 
 | Book | Content | Env var |
 |---|---|---|
-| Exalted Essence (core) | 495 charms, 35 spells, 15 rituals | `ESSENCE_CORE_PDF` |
-| Pillars of Creation | 387 charms, 28 spells, 13 rituals | `ESSENCE_PILLARS_PDF` |
+| Exalted Essence (core) | 498 charms, 35 spells, 15 rituals | `ESSENCE_CORE_PDF` |
+| Pillars of Creation | 397 charms, 28 spells, 13 rituals | `ESSENCE_PILLARS_PDF` |
 | Player's Guide (draft manuscript) | 879 charms, no sorcery | `ESSENCE_PLAYERSGUIDE_PDF` |
+| Tomb of Memory (jumpstart) | antagonists, hearthstones | `ESSENCE_TOMB_PDF` |
+| Storyteller's Guide (draft preview) | 64 antagonists | `ESSENCE_STG_PDF` |
 
 Books are optional — supply only what you own. The Player's Guide entry is the
 **draft manuscript**, whose charms may not match the published book.
@@ -62,8 +64,8 @@ Books are optional — supply only what you own. The Player's Guide entry is the
 python tools/build_all.py --core "/path/to/Exalted_Essence.pdf"
 ```
 
-Or set the environment variables and run it bare. Add `--pillars` and
-`--playersguide` for the supplements. Individual stages can be run alone; each
+Or set the environment variables and run it bare. Add `--pillars`,
+`--playersguide`, `--tomb` and `--stg` for the supplements. Individual stages can be run alone; each
 takes `--pdf`.
 
 The result is a `module/` directory. Copy it into your Foundry data directory
@@ -120,6 +122,25 @@ the prerequisite in the same block as the charm name; the rest use separate
 blocks. It also splits 31 charms across a page boundary, name on one page and
 prerequisite on the next, so blocks are streamed continuously rather than per
 page.
+
+**Charm names carry punctuation.** Names were first matched as capital
+letters, apostrophes and hyphens only. Thirteen charms and Evocations have a
+comma, colon, digit, parenthesis or exclamation mark in their name, or run past
+sixty characters, and every one was read as body text and swallowed into the
+description of the charm before it - present in no pack, and no count showed
+it. A few Pillars Evocation names are also set on the same line as the end of
+the paragraph before them; those are split off when a prerequisite follows.
+`tools/verify_charms.py` is what found them.
+
+**Pillars sets its page footer twice**, title and number both, so page 52
+arrives as `...5252` and read as 252. The number is halved only when the title
+before it is doubled too, so a genuine page 55 is never read as 5. The core
+book's running page headers are doubled the same way; they are dropped as page
+chrome, having reached 31 charm descriptions as text.
+
+**The draft manuscript still holds its editors' layout notes** - capitals-only
+instructions marking where a table or call-out box goes. The notes are dropped
+and what they mark is kept.
 
 **Document `_id`s derive from the charm name**, so rebuilding and re-importing
 updates existing entries rather than duplicating them. Supplement ids are

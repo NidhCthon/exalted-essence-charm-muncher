@@ -38,6 +38,10 @@ INLINE_PREREQ = re.compile(r"^(.{3,80}?)\s+(Prerequisites?:.*)$", re.S)
 NAME_SIZE = 14.0
 GROUP_SIZE = 16.0
 TOLERANCE = 0.15
+# Editors' layout notes left in the running text. The manuscript sets nothing
+# else in its charm descriptions in capitals only: before this filter existed,
+# every capitals-only block inside a description was one of these.
+EDITOR_NOTE = re.compile(r"^[A-Z][A-Z ]{8,}$")
 
 # (first_page, last_page, section label) - 1-indexed, inclusive.
 CHAPTERS = [
@@ -107,6 +111,12 @@ def extract(doc):
                     body_size, body_text, _ = stream[j]
                     if abs(body_size - NAME_SIZE) < TOLERANCE or body_size >= GROUP_SIZE:
                         break
+                    if EDITOR_NOTE.match(body_text):
+                        # A layout instruction left in by the manuscript's
+                        # editors, marking where a table or call-out box goes.
+                        # Drop the marker; whatever it marks stays.
+                        j += 1
+                        continue
                     body.append(body_text)
                     j += 1
                 section = section_for(page)

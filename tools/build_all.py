@@ -42,7 +42,7 @@ BUILDERS = [
 
 # Extractors that read several books at once rather than one.
 MULTI_BOOK = [
-    ("extract_antagonists.py", ("core", "pillars", "tomb"),
+    ("extract_antagonists.py", ("core", "pillars", "tomb", "stg"),
      "antagonists from every book"),
     ("extract_artifacts.py", ("core", "pillars", "playersguide"), "artifacts"),
     ("extract_hearthstones.py", ("core", "pillars", "tomb"), "hearthstones"),
@@ -55,6 +55,9 @@ ENV_VARS = {
     "pillars": "ESSENCE_PILLARS_PDF",
     "playersguide": "ESSENCE_PLAYERSGUIDE_PDF",
     "tomb": "ESSENCE_TOMB_PDF",
+    # Antagonists only. Missing from here, the pack silently rebuilt at 68
+    # actors instead of 132, dropping every Storyteller's Guide entry.
+    "stg": "ESSENCE_STG_PDF",
 }
 
 

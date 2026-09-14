@@ -26,18 +26,32 @@ FIRST_PAGE, LAST_PAGE = 186, 353  # 1-indexed inclusive: the charm chapter
 
 SECTION_MIN_SIZE = 18.0   # section titles render around 30pt
 NAME_SIZE = (10.5, 13.2)  # charm names: 12pt in most chapters, 10.9pt in Sorcery
-ALLCAPS = re.compile(r"^[A-Z][A-Z'\u2019\-\u2014 ]{3,60}$")
+# Charm names are capitals, but not only letters: they carry commas, colons,
+# digits, parentheses and exclamation marks, and the longest run past sixty
+# characters. A name this rejects is read as body text, and its charm is
+# silently swallowed into the description of the one before it - which is what
+# tools/verify_charms.py exists to catch.
+NAME_CHARS = r"A-Z0-9'’\-— ,:!()"
+ALLCAPS = re.compile(rf"^[A-Z][{NAME_CHARS}]{{3,90}}$")
+# A name set straight after the end of a paragraph, with no break, arrives in
+# the same block as that paragraph: "...Evocation:NAME".
+WELDED_NAME = re.compile(rf"^(.*[a-z].*?:)\s*([A-Z][{NAME_CHARS}]{{3,90}})$", re.S)
 PREREQ = re.compile(r"^Prerequisites?:\s*(.*)$", re.I | re.S)
 FOOTER = re.compile(r"CHAPTER [A-Z]+:", re.I)
 XREF = re.compile(r"^See p\. ?\d", re.I)
 TRAILING_PAGENO = re.compile(r"(\d{1,3})(?!.*\d)")
+DIGIT_RUN = re.compile(r"(\d+)(?!.*\d)")
+# The section name and page number printed at the head of a page, set twice
+# the way sidebars are: "ABYSSAL CHARMSABYSSAL CHARMS219219".
+RUNNING_HEADER = re.compile(
+    r"^(?P<title>[A-Z][A-Z'’\- ]{3,}?)(?P=title)?(?P<page>\d{1,3})(?P=page)$")
 
 
 def clean(s: str) -> str:
     """Drop soft hyphens, rejoin split words, normalise quotes and space."""
-    s = s.replace("\u00ad", "")
-    s = s.replace("\u2019", "'").replace("\u2018", "'")
-    s = s.replace("\u201c", '"').replace("\u201d", '"')
+    s = s.replace("­", "")
+    s = s.replace("’", "'").replace("‘", "'")
+    s = s.replace("“", '"').replace("”", '"')
     s = re.sub(r"-\s*\n\s*", "", s)
     return re.sub(r"\s+", " ", s).strip()
 
@@ -56,6 +70,35 @@ def dedupe_doubled(s: str) -> str:
     if len(words) % 2 == 0 and half and words[:half] == words[half:]:
         return " ".join(words[:half])
     return s
+
+
+def printed_page(footer):
+    """The printed page number in a running footer, or None."""
+    match = TRAILING_PAGENO.search(footer)
+    if not match:
+        return None
+    # Some footers are set twice, title and number both, so page 52 arrives as
+    # "...5252" and its last three digits read as 252. Undo that only when the
+    # title before the number is doubled as well: that pairing is the
+    # signature, and a genuine page such as 55 must never be halved to 5.
+    run = DIGIT_RUN.search(footer)
+    digits, label = run.group(1), footer[:run.start()].strip()
+    half = len(digits) // 2
+    if (len(digits) % 2 == 0 and digits[:half] == digits[half:]
+            and dedupe_doubled(label) != label):
+        return int(digits[:half])
+    return int(match.group(1))
+
+
+def is_running_header(text, pno):
+    """True for the page's own running header, which is chrome, not charm text.
+
+    The doubled page number has to be this page's, within a few pages of the
+    PDF index: a short capitals line inside a description that happens to end
+    in a repeated number, such as a stat like SIZE 22, is not a header.
+    """
+    match = RUNNING_HEADER.match(text)
+    return bool(match) and abs(int(match.group("page")) - (pno + 1)) <= 3
 
 
 def page_units(page):
@@ -110,20 +153,34 @@ def build_stream(doc, first=FIRST_PAGE, last=LAST_PAGE):
     for pno in range(first - 1, last):
         printed = pno
         units = order_page(list(page_units(doc[pno])))
-        for _, _, size, text in units:
+        for index, (_, _, size, text) in enumerate(units):
             if FOOTER.search(text):
-                m = TRAILING_PAGENO.search(text)
-                if m:
-                    printed = int(m.group(1))
+                number = printed_page(text)
+                if number is not None:
+                    printed = number
                 continue
+            if is_running_header(text, pno):
+                # Until names were allowed digits, nothing here looked at this
+                # line, and it was reaching charm descriptions as body text.
+                continue
+            name_sized = NAME_SIZE[0] <= size <= NAME_SIZE[1]
             if size >= SECTION_MIN_SIZE:
                 kind = "section"
                 text = dedupe_doubled(text)
-            elif NAME_SIZE[0] <= size <= NAME_SIZE[1] and ALLCAPS.match(text):
+            elif name_sized and ALLCAPS.match(text):
                 kind = "name"
                 text = dedupe_doubled(text)
             else:
                 kind = "body"
+                welded = WELDED_NAME.match(text) if name_sized else None
+                following = units[index + 1][3] if index + 1 < len(units) else ""
+                if welded and PREREQ.match(following):
+                    # The block only reaches name size because the name is in
+                    # it, so split the name off its paragraph. Only when a
+                    # prerequisite line follows, though: a label run on after
+                    # a colon in ordinary prose must stay in its paragraph.
+                    stream.append(("body", welded.group(1), printed))
+                    kind, text = "name", dedupe_doubled(welded.group(2))
             stream.append((kind, text, printed))
     return stream
 

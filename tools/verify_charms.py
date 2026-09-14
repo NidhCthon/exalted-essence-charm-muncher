@@ -12,6 +12,8 @@ failure leaves:
               two charms became one, so one is missing from the packs. The
               swallowed name is shown. The charm equivalent of
               verify_antagonists.py's MERGED, and the worst failure here.
+              A Project's stat block carries a prerequisite line too; the time
+              scale after it marks it as description, and it is not flagged.
 * HEADING     an all-caps span inside a body: a name-sized line that was not
               treated as a name. Either a missed charm, sidebar chrome, or - in
               the draft Player's Guide - an editor's layout note left in.
@@ -120,8 +122,14 @@ def check(charms, page_range=None):
         names = []
         for k, span in enumerate(body):
             before = opens_a_charm(span)
-            if before is not None:
-                names.append(swallowed_name(body, k, before))
+            if before is None:
+                continue
+            # A Project's stat block has a prerequisite line of its own,
+            # followed by its time scale. It belongs to the charm's
+            # description rather than starting a second charm.
+            if any(s.startswith("Time scale") for s in body[k + 1:k + 3]):
+                continue
+            names.append(swallowed_name(body, k, before))
         if names:
             flags[i].append("MERGED")
             swallowed[i] = names
