@@ -9,6 +9,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -17,7 +18,7 @@ MODULE = ROOT / "module"
 CLI = ROOT / "node_modules" / "@foundryvtt" / "foundryvtt-cli" / "fvtt.mjs"
 
 MODULE_ID = "exalted-essence-charms"
-VERSION = "0.11.2"
+VERSION = "0.11.3"
 # Where the built module is served from for Foundry to install and update.
 # Loopback by default: see the note beside the manifest below.
 MODULE_HOST = os.environ.get("MODULE_HOST", "http://127.0.0.1:8088")
@@ -25,6 +26,16 @@ MODULE_HOST = os.environ.get("MODULE_HOST", "http://127.0.0.1:8088")
 # Packs of Actors rather than Items.
 ACTOR_PACKS = {"antagonists"}
 SYSTEM_ID = "exaltedessence"
+
+# Stamped into every document's _stats. Foundry re-migrates any record with
+# no _stats, or one whose coreVersion is older than a migration, on every
+# startup after a deploy. These must match the server: a coreVersion newer
+# than the running Foundry makes it refuse to migrate the record at all.
+# Foundry's release version is "<generation>.<build>".
+CORE_VERSION = "14.365"
+SYSTEM_VERSION = "3.1.0"
+# Documents that can sit inside another in these packs.
+EMBEDDED_COLLECTIONS = ("items", "effects")
 
 # Foundry builds these folders in the compendium sidebar once per world, so
 # twenty-six packs arrive grouped rather than as one long list. A pack named
@@ -89,24 +100,54 @@ LABELS = {
 }
 
 
+def stamp(doc):
+    """Give a document, and those embedded in it, current _stats."""
+    doc["_stats"] = {
+        "coreVersion": CORE_VERSION,
+        "systemId": SYSTEM_ID,
+        "systemVersion": SYSTEM_VERSION,
+        "createdTime": None,
+        "modifiedTime": None,
+        "lastModifiedBy": None,
+        "compendiumSource": None,
+        "duplicateSource": None,
+        "exportSource": None,
+    }
+    for collection in EMBEDDED_COLLECTIONS:
+        for child in doc.get(collection) or []:
+            stamp(child)
+    return doc
+
+
 def build_pack(name):
-    """Compile one directory of JSON documents into a LevelDB pack."""
-    result = subprocess.run(
-        [
-            "node", str(CLI), "package", "pack",
-            "--id", MODULE_ID,
-            "--type", "Module",
-            "-n", name,
-            "--in", str(SRC / name),
-            "--out", str(MODULE / "packs"),
-        ],
-        capture_output=True,
-        text=True,
-    )
+    """Compile one directory of JSON documents into a LevelDB pack.
+
+    The documents are stamped in a scratch copy, so data/packs/ stays as the
+    builders wrote it.
+    """
+    sources = sorted((SRC / name).glob("*.json"))
+    with tempfile.TemporaryDirectory() as scratch:
+        for source in sources:
+            doc = stamp(json.loads(source.read_text(encoding="utf-8")))
+            (Path(scratch) / source.name).write_text(
+                json.dumps(doc, ensure_ascii=False), encoding="utf-8"
+            )
+        result = subprocess.run(
+            [
+                "node", str(CLI), "package", "pack",
+                "--id", MODULE_ID,
+                "--type", "Module",
+                "-n", name,
+                "--in", scratch,
+                "--out", str(MODULE / "packs"),
+            ],
+            capture_output=True,
+            text=True,
+        )
     if result.returncode != 0:
         sys.stderr.write(result.stdout + result.stderr)
         raise SystemExit("pack failed: {}".format(name))
-    return sum(1 for _ in (SRC / name).glob("*.json"))
+    return len(sources)
 
 
 def main():
