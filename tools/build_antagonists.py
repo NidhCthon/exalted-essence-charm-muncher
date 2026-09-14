@@ -276,6 +276,10 @@ def build(entry, spells=None):
             "actorLink": False,
             "disposition": -1,
             "sight": {"enabled": False},
+            # Foundry v14 requires a number here; 1 is TokenDocument's own
+            # initial. Leaving it out makes every deploy log a validation
+            # warning per actor until Foundry migrates the record.
+            "depth": 1,
         },
         "items": weapons,
         "effects": [],
@@ -353,6 +357,7 @@ def build_group(entry, box, index):
             "actorLink": False,
             "disposition": -1,
             "sight": {"enabled": False},
+            "depth": 1,
         },
         "items": [],
         "effects": [],
