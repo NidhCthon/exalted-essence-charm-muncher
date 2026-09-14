@@ -18,7 +18,7 @@ MODULE = ROOT / "module"
 CLI = ROOT / "node_modules" / "@foundryvtt" / "foundryvtt-cli" / "fvtt.mjs"
 
 MODULE_ID = "exalted-essence-charms"
-VERSION = "0.11.3"
+VERSION = "0.11.4"
 # Where the built module is served from for Foundry to install and update.
 # Loopback by default: see the note beside the manifest below.
 MODULE_HOST = os.environ.get("MODULE_HOST", "http://127.0.0.1:8088")
@@ -183,7 +183,11 @@ def main():
             "drag-and-drop compendium items for the Exalted Essence system."
         ),
         "version": VERSION,
-        "compatibility": {"minimum": "14", "verified": "14"},
+        # Stamped documents fail to load on a Foundry older than
+        # CORE_VERSION, so do not let one install the module. Verified stays
+        # a bare generation: a full build there flags the module unverified
+        # after every 14.x update.
+        "compatibility": {"minimum": CORE_VERSION, "verified": "14"},
         "authors": [{"name": "NidhCthon"}],
         "url": "https://github.com/NidhCthon/exalted-essence-charm-muncher",
         "readme": "https://github.com/NidhCthon/exalted-essence-charm-muncher#readme",
