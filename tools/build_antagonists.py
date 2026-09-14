@@ -276,9 +276,12 @@ def build(entry, spells=None):
             "actorLink": False,
             "disposition": -1,
             "sight": {"enabled": False},
-            # Foundry v14 requires a number here; 1 is TokenDocument's own
-            # initial. Leaving it out makes every deploy log a validation
-            # warning per actor until Foundry migrates the record.
+            # Foundry v14's token migration sets depth to min(width, height),
+            # so without width and height it writes NaN and every deploy logs
+            # a validation warning per actor. 1 is the schema's initial for
+            # all three.
+            "width": 1,
+            "height": 1,
             "depth": 1,
         },
         "items": weapons,
@@ -357,6 +360,8 @@ def build_group(entry, box, index):
             "actorLink": False,
             "disposition": -1,
             "sight": {"enabled": False},
+            "width": 1,
+            "height": 1,
             "depth": 1,
         },
         "items": [],
