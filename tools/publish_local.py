@@ -28,9 +28,10 @@ here, because this repository is public and the server is not:
                          (default /opt/foundryvtt/resources/app)
 
 --deploy refuses to run unless the server's Foundry is exactly CORE_VERSION
-from build_packs.py, the version stamped into every document. An older
-Foundry refuses those documents; a newer one re-migrates all of them on every
-startup after a deploy.
+and its system is exactly SYSTEM_VERSION, both from build_packs.py and both
+stamped into every document. An older Foundry refuses those documents; a newer
+one re-migrates all of them on every startup after a deploy. A different
+system version would leave every document claiming the wrong one.
 """
 import argparse
 import json
@@ -41,7 +42,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-from build_packs import CORE_VERSION
+from build_packs import CORE_VERSION, SYSTEM_ID, SYSTEM_VERSION
 
 ROOT = Path(__file__).resolve().parent.parent
 MODULE = ROOT / "module"
@@ -65,25 +66,32 @@ def version_tuple(version):
     return tuple(int(part) for part in version.split("."))
 
 
-def check_core_version(ssh, app_dir, manifest):
-    """Stop before deploying documents stamped for a different Foundry."""
+def remote_version(ssh, expression, path, sudo=False):
+    """Read one version string out of a JSON file on the server."""
+    result = subprocess.run(
+        ssh + ["{}python3 -c 'import json,sys;j=json.load(open(sys.argv[1]));"
+               "print({})' {}".format("sudo " if sudo else "", expression, path)],
+        capture_output=True,
+        text=True,
+    )
+    version = result.stdout.strip()
+    if result.returncode != 0 or not version:
+        sys.exit("could not read a version from {} on the server:\n{}".format(
+            path, result.stderr.strip()))
+    return version
+
+
+def check_versions(ssh, app_dir, data_dir, manifest):
+    """Stop before deploying documents stamped for a different server."""
     built = manifest.get("compatibility", {}).get("minimum")
     if built != CORE_VERSION:
         sys.exit("module/ was built for Foundry {} but build_packs.py says {}. "
                  "Run tools/build_packs.py first.".format(built, CORE_VERSION))
 
-    result = subprocess.run(
-        ssh + ["python3 -c 'import json,sys;r=json.load(open(sys.argv[1]))"
-               "[\"release\"];print(\"{}.{}\".format(r[\"generation\"],"
-               "r[\"build\"]))' " + "{}/package.json".format(app_dir)],
-        capture_output=True,
-        text=True,
-    )
-    server = result.stdout.strip()
-    if result.returncode != 0 or not server:
-        sys.exit("could not read Foundry's version from {}/package.json on "
-                 "the server:\n{}".format(app_dir, result.stderr.strip()))
-
+    server = remote_version(
+        ssh,
+        '"{}.{}".format(j["release"]["generation"],j["release"]["build"])',
+        "{}/package.json".format(app_dir))
     if version_tuple(server) < version_tuple(CORE_VERSION):
         sys.exit("the server runs Foundry {}, older than CORE_VERSION {}. It "
                  "would refuse every document. Lower CORE_VERSION in "
@@ -95,6 +103,18 @@ def check_core_version(ssh, app_dir, manifest):
                  "CORE_VERSION in tools/build_packs.py to {} and rebuild."
                  .format(server, CORE_VERSION, server))
     print("server Foundry {} matches CORE_VERSION".format(server))
+
+    # Compared exactly rather than ordered: system versions can carry
+    # suffixes such as -beta. The data directory is only readable by root.
+    system = remote_version(
+        ssh, 'j["version"]',
+        "{}/Data/systems/{}/system.json".format(data_dir, SYSTEM_ID), sudo=True)
+    if system != SYSTEM_VERSION:
+        sys.exit("the server runs {} {}, but SYSTEM_VERSION is {}, so every "
+                 "document would be stamped with the wrong system version. "
+                 "Set SYSTEM_VERSION in tools/build_packs.py to {} and rebuild."
+                 .format(SYSTEM_ID, system, SYSTEM_VERSION, system))
+    print("server {} {} matches SYSTEM_VERSION".format(SYSTEM_ID, system))
 
 
 def build_zip(manifest, into):
@@ -128,9 +148,9 @@ def main():
     scp = ["scp"] + (["-i", key] if key else [])
 
     if args.deploy:
-        check_core_version(
+        check_versions(
             ssh, setting("FOUNDRY_APP_DIR", "/opt/foundryvtt/resources/app"),
-            manifest)
+            data_dir, manifest)
 
     with tempfile.TemporaryDirectory() as workspace:
         staging = Path(workspace)
