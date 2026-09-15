@@ -23,7 +23,22 @@ STAT_RE = re.compile(
     re.I)
 OVERWHELMING_RE = re.compile(r"(\d+)\s*Overwhelming", re.I)
 TAGS_RE = re.compile(r"Tags?\s*:\s*(.+)$", re.I | re.S)
-RANGE_RE = re.compile(r"\b(short|medium|long|extreme)\s+range\b", re.I)
+# "<band> range", "Range: <band>" and "Range <band>" are all printed.
+RANGE_RE = re.compile(
+    r"\b(?:(short|medium|long|extreme)\s+range"
+    r"|range\s*:?\s*(short|medium|long|extreme))\b", re.I)
+# The weapon line runs on into the qualities after it, so the text before a
+# bracket can end a sentence of prose: "<prose>. Weapons: <name> (...)". The
+# name is what follows the last full stop, colon or semicolon.
+NAME_BREAK_RE = re.compile(r"[.:;]\s+")
+# "<Name>. <a sentence about it> (<stats>)": a short title-case name first.
+LEADING_NAME_RE = re.compile(
+    r"^\s*([A-Z][\w'-]*(?:\s+(?:of|the|and|[A-Z][\w'-]*)){0,5})\.\s")
+# A weapon prints Accuracy or Overwhelming. An environmental hazard in the
+# prose prints only damage and a difficulty, and is not a weapon.
+WEAPON_STAT_RE = re.compile(r"\bAcc|Overwhelm", re.I)
+# A bow or sling that prints neither a range nor the ranged tag still shoots.
+SHOOTS_RE = re.compile(r"\b(?:long|short|cross|power)?bows?\b|sling", re.I)
 
 FIELD = {
     "acc": "accuracy", "accuracy": "accuracy",
@@ -47,11 +62,27 @@ def item_id(owner, name, index):
 
 def parse_weapons(text):
     """Every weapon in a printed weapon line."""
+    text = text or ""
     found = []
-    for match in WEAPON_RE.finditer(text or ""):
-        name = match.group(1).strip(" .,;:&").lstrip("and ").strip()
+    for match in WEAPON_RE.finditer(text):
         body = match.group(2)
-        if len(name) < 2 or not STAT_RE.search(body):
+        if not STAT_RE.search(body) or not WEAPON_STAT_RE.search(body):
+            continue
+        raw = match.group(1)
+        start = 0
+        for brk in NAME_BREAK_RE.finditer(raw):
+            start = brk.end()
+        printed = text[match.start(1) + start:match.end()].strip()
+        if start == 0 and match.start() > 0 and text[match.start() - 1].isalnum():
+            # The name pattern hit its length limit mid-sentence, so prose
+            # runs right up to this bracket. The one form that still names
+            # the weapon gives the name first, then a sentence about it.
+            leading = LEADING_NAME_RE.match(text)
+            if found or not leading:
+                continue
+            raw, printed = leading.group(1), text[:match.end()].strip()
+        name = re.sub(r"^and\s+", "", raw[start:].strip(" .,;:&")).strip()
+        if len(name) < 2:
             continue
 
         stats = {"accuracy": 0, "damage": 0, "defense": 0, "overwhelming": 0}
@@ -69,7 +100,9 @@ def parse_weapons(text):
         known, custom = [], []
         tags = TAGS_RE.search(body)
         if tags:
-            for tag in tags.group(1).split(","):
+            # A range printed after the tags ("Tags: <tag>. Range: <band>")
+            # is not a tag, and left in it swallowed the tag before it.
+            for tag in RANGE_RE.sub("", tags.group(1)).split(","):
                 tag = tag.strip(" .;)")
                 if not tag:
                     continue
@@ -81,11 +114,11 @@ def parse_weapons(text):
         # its stats followed by a range ("<n> Overwhelming, Long range"), the range is
         # the book saying it shoots, so read that rather than leaving a bow
         # filed as a melee weapon.
-        ranged = bool(RANGE_RE.search(body))
+        ranged = bool(RANGE_RE.search(body) or SHOOTS_RE.search(name))
 
         found.append({"name": name, "stats": stats, "tags": known,
                       "custom": custom, "ranged": ranged,
-                      "printed": match.group(0).strip()})
+                      "printed": printed})
     return found
 
 
