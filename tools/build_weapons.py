@@ -138,19 +138,20 @@ def parse_weapons(text):
 
         known, custom = [], []
         tags = TAGS_RE.search(body)
-        tag_text = tags.group(1) if tags else ""
         if not tags:
-            # "<stats>; <tag>, <tag>" with no "Tags:" label. Taken only when
-            # every word after the last stat is a tag, so prose is not.
-            stats_end = max((s.end() for s in STAT_RE.finditer(body)), default=0)
-            rest = body[stats_end:]
-            pieces = [p.strip(" .;") for p in rest.split(",") if p.strip(" .;")]
-            if pieces and all(tag_key(p) in WEAPON_TAGS for p in pieces):
-                tag_text = rest
-        if tag_text:
+            # No "Tags:" label: the tags sit bare in the bracket, before or
+            # after the stats ("<tag>, <tag>, <stats>" and "<stats>, <tag>").
+            # Only a segment that is a known tag is taken; anything else in
+            # there (a range, "Artifact <kind>") is not a tag, nor custom.
+            bare = RANGE_RE.sub("", STAT_RE.sub(",", body))
+            for piece in re.split(r"[,.;]", bare):
+                key = tag_key(piece)
+                if key in WEAPON_TAGS and key not in known:
+                    known.append(key)
+        else:
             # A range printed after the tags ("Tags: <tag>. Range: <band>")
             # is not a tag, and left in it swallowed the tag before it.
-            for tag in RANGE_RE.sub("", tag_text).split(","):
+            for tag in RANGE_RE.sub("", tags.group(1)).split(","):
                 tag = tag.strip(" .;)")
                 if not tag:
                     continue
