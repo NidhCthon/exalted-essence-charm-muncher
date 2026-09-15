@@ -141,11 +141,14 @@ def parse_weapons(text):
         if not tags:
             # No "Tags:" label: the tags sit bare in the bracket, before or
             # after the stats ("<tag>, <tag>, <stats>" and "<stats>, <tag>").
-            # Only a segment that is a known tag is taken; anything else in
-            # there (a range, "Artifact <kind>") is not a tag, nor custom.
+            # Only a segment that is a known tag is taken, or "Artifact
+            # <kind>", which is the artifact tag with the kind it is named
+            # for. Anything else in there (a range) is not a tag, nor custom.
             bare = RANGE_RE.sub("", STAT_RE.sub(",", body))
             for piece in re.split(r"[,.;]", bare):
                 key = tag_key(piece)
+                if re.match(r"\s*artifact\s+\S", piece, re.I):
+                    key = "artifact"
                 if key in WEAPON_TAGS and key not in known:
                     known.append(key)
         else:
