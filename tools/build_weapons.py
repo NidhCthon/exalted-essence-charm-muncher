@@ -18,10 +18,18 @@ from build_artifacts import WEAPON_TAGS, attack_effect_preset, tag_key
 # "Name (+1 Accuracy, +3 Damage, ... Tags: a, b)". The name runs up to the
 # bracket; everything inside it is the statistics.
 WEAPON_RE = re.compile(r"([^(),]{2,60}?)\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\)")
+# Both orders are printed: "+1 Accuracy, 3 Overwhelming" and "Accuracy +1,
+# Overwhelming 3", sometimes mixed in one bracket. Matching left to right,
+# a number is taken by the word after it before the word in front of it, and
+# a word-first number is refused when a stat word follows it, so neither
+# "+3 Damage 2 Overwhelming" nor "Damage 12 Overwhelming" reads as Damage 2
+# or 1.
+STAT_WORDS = r"Accuracy|Acc|Damage|Dam|Defense|Defence|Def|Overwhelming"
 STAT_RE = re.compile(
-    r"([+-]?\d+)\s*(Accuracy|Acc|Damage|Dam|Defense|Defence|Def|Overwhelming)",
+    r"([+-]?\d+)\s*({0})"
+    r"|\b({0})\b\s*:?\s*([+-]?\d+)(?!\d|\s*(?:Acc|Dam|Def|Overwhelm))".format(
+        STAT_WORDS),
     re.I)
-OVERWHELMING_RE = re.compile(r"(\d+)\s*Overwhelming", re.I)
 TAGS_RE = re.compile(r"Tags?\s*:\s*(.+)$", re.I | re.S)
 # "<band> range", "Range: <band>" and "Range <band>" are all printed.
 RANGE_RE = re.compile(
@@ -86,16 +94,17 @@ def parse_weapons(text):
             continue
 
         stats = {"accuracy": 0, "damage": 0, "defense": 0, "overwhelming": 0}
+        overwhelming = None
         for stat in STAT_RE.finditer(body):
-            field = FIELD.get(stat.group(2).lower())
-            if field:
-                stats[field] = int(stat.group(1))
-        # Overwhelming is written after its number without a sign, which the
-        # signed pattern above also catches - but only when it is not the
-        # first thing in the bracket, so read it directly too.
-        overwhelming = OVERWHELMING_RE.search(body)
-        if overwhelming:
-            stats["overwhelming"] = int(overwhelming.group(1))
+            field = FIELD[(stat.group(2) or stat.group(3)).lower()]
+            value = int(stat.group(1) or stat.group(4))
+            stats[field] = value
+            if field == "overwhelming" and overwhelming is None:
+                overwhelming = value
+        # Overwhelming has no sign, and where it is printed twice the first
+        # one is the weapon's own.
+        if overwhelming is not None:
+            stats["overwhelming"] = abs(overwhelming)
 
         known, custom = [], []
         tags = TAGS_RE.search(body)
