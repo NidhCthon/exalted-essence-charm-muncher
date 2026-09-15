@@ -2,10 +2,15 @@
 
 A hearthstone is a Merit in Essence - the character creation chapter lists
 Hearthstone among the merits a character buys - so that is the type used
-here rather than a generic item. The system's merit carries a free-text
-`rating`, which takes the Lesser or Greater the book prints in brackets, and
-a `merittype`, which is a free string set to hearthstone so these can be
-told apart from other merits at a glance.
+here rather than a generic item. `merittype` is a free string set to
+hearthstone so these can be told apart from other merits at a glance.
+
+`rating` is the Merit rating, not the stone's size. The dice roller looks it
+up in CONFIG.EXALTEDESSENCE.meritDiceBonuses, so anything but primary,
+secondary, tertiary or blank turns a roll's dice modifier into NaN - which
+the printed Lesser, Standard or Greater did. The core book's Hearthstone
+Merit gives a lesser (standard-power) stone as a secondary Merit and a
+greater one as primary, and the printed word stays in the description.
 
 Nothing about a hearthstone is numeric, so nothing here is derived. The
 aspect and the manse description are kept as printed.
@@ -23,6 +28,10 @@ SRC = ROOT / "data" / "hearthstones.raw.json"
 OUT = ROOT / "data" / "packs" / "hearthstones"
 
 ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+# The printed size of a stone, as the Merit rating it is bought at.
+MERIT_RATINGS = {"lesser": "secondary", "standard": "secondary",
+                 "greater": "primary"}
 
 
 def doc_id(name, book, page):
@@ -81,7 +90,7 @@ def build(entry):
             "description": to_html(parts),
             "pagenum": str(entry["page"]),
             "merittype": "hearthstone",
-            "rating": entry["rating"],
+            "rating": MERIT_RATINGS.get(entry["rating"].lower(), ""),
         },
         "effects": [],
         "folder": None,
@@ -110,6 +119,9 @@ def main():
         len({i["_id"] for i in items}) == len(items)))
     print("with a rating        : {}".format(
         sum(1 for i in items if i["system"]["rating"])))
+    print("size not mapped      : {}".format(
+        [e["rating"] for e in entries
+         if e["rating"] and e["rating"].lower() not in MERIT_RATINGS]))
     print("empty description    : {}".format(
         sum(1 for i in items if not i["system"]["description"])))
     print()

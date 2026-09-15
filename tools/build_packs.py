@@ -18,7 +18,7 @@ MODULE = ROOT / "module"
 CLI = ROOT / "node_modules" / "@foundryvtt" / "foundryvtt-cli" / "fvtt.mjs"
 
 MODULE_ID = "exalted-essence-charms"
-VERSION = "0.11.5"
+VERSION = "0.11.6"
 # Where the built module is served from for Foundry to install and update.
 # Loopback by default: see the note beside the manifest below.
 MODULE_HOST = os.environ.get("MODULE_HOST", "http://127.0.0.1:8088")
@@ -96,6 +96,7 @@ LABELS = {
     "antagonists": "Essence: Antagonists",
     "artifacts": "Essence: Artifacts",
     "hearthstones": "Essence: Hearthstones",
+    "merits": "Essence: Merits",
     "equipment": "Essence: Basic Equipment",
 }
 

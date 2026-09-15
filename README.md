@@ -13,7 +13,7 @@ Targets the [Exalted Essence system](https://github.com/Aliharu/Foundry-ExEss)
 
 ## What you get
 
-With all five books, 2,074 documents across 26 packs:
+With all five books, 2,085 documents across 27 packs:
 
 | Pack | Items |
 |---|---|
@@ -30,6 +30,7 @@ With all five books, 2,074 documents across 26 packs:
 | Shaping Rituals | 28 |
 | Strawmaiden Janest | 25 |
 | Hearthstones | 21 |
+| Merits | 11 |
 | Artifacts and warstriders | 27 |
 | Dragon King, Dream-Souled, Umbral | 6 each |
 
@@ -37,6 +38,12 @@ Charms carry ability, requirement, Essence, mote/anima/Power cost, prerequisite
 charms, page reference and a formatted description. Spells carry circle, spell
 type and Will cost. Everything uses the enum values from the system's own
 `config.js`, so sheet dropdowns resolve rather than rendering blank.
+
+Merits lead their description with the ratings they may take, and leave
+`rating` for the player to set unless the book allows only one. Hearthstones
+are rated as the Merit that buys them: secondary for a lesser or standard
+stone, primary for a greater. The dice roller looks `rating` up to add Merit
+dice, so any other value there breaks the roll.
 
 ## Requirements
 
@@ -49,8 +56,8 @@ type and Will cost. Everything uses the enum values from the system's own
 
 | Book | Content | Env var |
 |---|---|---|
-| Exalted Essence (core) | 498 charms, 35 spells, 15 rituals | `ESSENCE_CORE_PDF` |
-| Pillars of Creation | 397 charms, 28 spells, 13 rituals | `ESSENCE_PILLARS_PDF` |
+| Exalted Essence (core) | 498 charms, 35 spells, 15 rituals, 10 merits | `ESSENCE_CORE_PDF` |
+| Pillars of Creation | 397 charms, 28 spells, 13 rituals, 1 merit | `ESSENCE_PILLARS_PDF` |
 | Player's Guide (draft manuscript) | 879 charms, no sorcery | `ESSENCE_PLAYERSGUIDE_PDF` |
 | Tomb of Memory (jumpstart) | antagonists, hearthstones | `ESSENCE_TOMB_PDF` |
 | Storyteller's Guide (draft preview) | 64 antagonists | `ESSENCE_STG_PDF` |

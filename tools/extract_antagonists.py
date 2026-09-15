@@ -144,7 +144,7 @@ FOOTER_RE = re.compile(r"CHAPTER [A-Z]+:|Mortals and Exalted|Gods and Monsters"
                        r"|Exalted Antagonists|Strange Beasts", re.I)
 
 
-def spans(doc, first, last, banner_min, with_font=False):
+def spans(doc, first, last, banner_min, with_font=False, with_layout=False):
     """Every span in reading order: left column, then right, then next page.
 
     Except that a centred section banner straddles both columns and divides
@@ -153,6 +153,10 @@ def spans(doc, first, last, banner_min, with_font=False):
     antagonist's stats past the heading of the section underneath, which is
     how one warship's stats ended up filed after a later name. The charm
     extractor splits pages this way too - see order_page() in extract.py.
+
+    with_layout adds the font, the column (0 left, 1 right), the span's left
+    edge and whether it starts a line, for extractors that find paragraphs
+    by their first-line indent.
     """
     for pno in range(first - 1, last):
         page = doc[pno]
@@ -179,8 +183,9 @@ def spans(doc, first, last, banner_min, with_font=False):
                 ordered.append(banners[index])
             lower = upper
 
-        for _, _, _, blk in ordered:
+        for column, _, _, blk in ordered:
             for line in blk.get("lines", []):
+                starts_line = True
                 for sp in line.get("spans", []):
                     raw = sp["text"]
                     text = clean(raw)
@@ -197,10 +202,14 @@ def spans(doc, first, last, banner_min, with_font=False):
                     # The equipment chapter tells a name from its tags by
                     # font rather than by size, so that is offered too - but
                     # only on request, to leave the common shape alone.
-                    if with_font:
+                    if with_layout:
+                        yield (pno + 1, round(sp["size"], 1), text, sp["font"],
+                               column, sp["bbox"][0], starts_line)
+                    elif with_font:
                         yield pno + 1, round(sp["size"], 1), text, sp["font"]
                     else:
                         yield pno + 1, round(sp["size"], 1), text
+                    starts_line = False
 
 
 def stat_block_of(text):
