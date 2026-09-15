@@ -20,7 +20,7 @@ import re
 from collections import Counter
 from pathlib import Path
 
-from build_weapons import weapon_items
+from build_weapons import parse_weapons, weapon_items
 from extract_battle_groups import parse_boxes
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -204,7 +204,21 @@ def build(entry, spells=None):
     # An embedded document needs its own key, the way a top-level one does,
     # and the packer fails outright without it rather than skipping the
     # document quietly.
-    weapons = weapon_items(entry["name"], entry.get("weapon", ""))
+    weapon_text = entry.get("weapon", "")
+    qualities = entry.get("qualities", "") or ""
+    if not weapon_text:
+        # Some books print no weapon line and open the qualities with the
+        # weapons instead. Read them from there, and take them out of the
+        # qualities so the sheet does not show them twice.
+        printed = [w["printed"] for w in parse_weapons(qualities)]
+        if printed:
+            weapon_text = qualities
+            for run in printed:
+                qualities = re.sub(
+                    r"(?i:\bweapons?\s*:?\s*)?" + re.escape(run) + r"\s*[,;]?",
+                    " ", qualities, count=1)
+            qualities = re.sub(r"\s{2,}", " ", qualities).strip(" .,;:")
+    weapons = weapon_items(entry["name"], weapon_text)
     for weapon in weapons:
         weapon["_key"] = "!actors.items!{}.{}".format(identifier, weapon["_id"])
 
@@ -213,7 +227,7 @@ def build(entry, spells=None):
     # A battle group is the entry that carries Size, or prints a Drill/Size
     # table.
     battlegroup = "size" in stats or tabled
-    qualities = entry.get("qualities", "") or NO_QUALITIES
+    qualities = qualities or NO_QUALITIES
     if tabled:
         # Its numbers could only have come from neighbouring prose, so do not
         # pretend to know them.

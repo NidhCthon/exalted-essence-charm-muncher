@@ -42,6 +42,11 @@ NAME_BREAK_RE = re.compile(r"[.:;]\s+")
 # "<Name>. <a sentence about it> (<stats>)": a short title-case name first.
 LEADING_NAME_RE = re.compile(
     r"^\s*([A-Z][\w'-]*(?:\s+(?:of|the|and|[A-Z][\w'-]*)){0,5})\.\s")
+# "<Name> (<kind>): (<stats>)": the bracket before the stats belongs to the
+# name, leaving only the colon between it and the stats.
+KIND_NAME_RE = re.compile(r"([A-Z][^(),.:;]{0,60}?\s*\([^()]*\))\s*:\s*$")
+# A weapon line whose "Weapons" heading lost its colon keeps it on the name.
+WEAPON_LABEL_RE = re.compile(r"^weapons?\b\s*:?\s*", re.I)
 # A weapon prints Accuracy or Overwhelming. An environmental hazard in the
 # prose prints only damage and a difficulty, and is not a weapon.
 WEAPON_STAT_RE = re.compile(r"\bAcc|Overwhelm", re.I)
@@ -90,6 +95,13 @@ def parse_weapons(text):
                 continue
             raw, printed = leading.group(1), text[:match.end()].strip()
         name = re.sub(r"^and\s+", "", raw[start:].strip(" .,;:&")).strip()
+        if not name:
+            kinded = KIND_NAME_RE.search(text, 0, match.start(2) - 1)
+            if kinded:
+                name = kinded.group(1).strip()
+                printed = text[kinded.start(1):match.end()].strip()
+        name = WEAPON_LABEL_RE.sub("", name)
+        printed = WEAPON_LABEL_RE.sub("", printed)
         if len(name) < 2:
             continue
 
@@ -108,10 +120,19 @@ def parse_weapons(text):
 
         known, custom = [], []
         tags = TAGS_RE.search(body)
-        if tags:
+        tag_text = tags.group(1) if tags else ""
+        if not tags:
+            # "<stats>; <tag>, <tag>" with no "Tags:" label. Taken only when
+            # every word after the last stat is a tag, so prose is not.
+            stats_end = max((s.end() for s in STAT_RE.finditer(body)), default=0)
+            rest = body[stats_end:]
+            pieces = [p.strip(" .;") for p in rest.split(",") if p.strip(" .;")]
+            if pieces and all(tag_key(p) in WEAPON_TAGS for p in pieces):
+                tag_text = rest
+        if tag_text:
             # A range printed after the tags ("Tags: <tag>. Range: <band>")
             # is not a tag, and left in it swallowed the tag before it.
-            for tag in RANGE_RE.sub("", tags.group(1)).split(","):
+            for tag in RANGE_RE.sub("", tag_text).split(","):
                 tag = tag.strip(" .;)")
                 if not tag:
                     continue
