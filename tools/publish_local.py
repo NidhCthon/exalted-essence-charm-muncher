@@ -87,6 +87,15 @@ def check_versions(ssh, app_dir, data_dir, manifest):
     if built != CORE_VERSION:
         sys.exit("module/ was built for Foundry {} but build_packs.py says {}. "
                  "Run tools/build_packs.py first.".format(built, CORE_VERSION))
+    built_system = next(
+        (s.get("compatibility", {}).get("verified")
+         for s in manifest.get("relationships", {}).get("systems", [])
+         if s.get("id") == SYSTEM_ID),
+        None)
+    if built_system != SYSTEM_VERSION:
+        sys.exit("module/ was built for {} {} but build_packs.py says {}. "
+                 "Run tools/build_packs.py first.".format(
+                     SYSTEM_ID, built_system, SYSTEM_VERSION))
 
     server = remote_version(
         ssh,

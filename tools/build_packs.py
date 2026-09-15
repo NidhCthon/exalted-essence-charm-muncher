@@ -18,7 +18,7 @@ MODULE = ROOT / "module"
 CLI = ROOT / "node_modules" / "@foundryvtt" / "foundryvtt-cli" / "fvtt.mjs"
 
 MODULE_ID = "exalted-essence-charms"
-VERSION = "0.11.4"
+VERSION = "0.11.5"
 # Where the built module is served from for Foundry to install and update.
 # Loopback by default: see the note beside the manifest below.
 MODULE_HOST = os.environ.get("MODULE_HOST", "http://127.0.0.1:8088")
@@ -200,7 +200,11 @@ def main():
             "systems": [{
                 "id": SYSTEM_ID,
                 "type": "system",
-                "compatibility": {"minimum": "3.0.0"},
+                # verified records the SYSTEM_VERSION the documents were
+                # stamped with, so publish_local.py can spot a stale build.
+                # Foundry only enforces minimum and maximum here.
+                "compatibility": {"minimum": "3.0.0",
+                                  "verified": SYSTEM_VERSION},
             }]
         },
         "packs": packs,
