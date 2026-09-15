@@ -65,6 +65,65 @@ CATEGORY_RE = re.compile(r"\b(light|medium|heavy)\b", re.I)
 RANGED_RE = re.compile(r"\branged\b", re.I)
 ARMOR_RE = re.compile(r"\barmou?r\b", re.I)
 
+# The system plays an attack animation (Sequencer with JB2A, behind its
+# "attack effects" setting) chosen by the weapon's preset, and "none" plays
+# nothing. So every weapon is given the nearest preset by what it is called,
+# first match winning, then by its tags. The player can change it on the
+# sheet; the keys are the system's own, "greatsaxe" spelling included.
+ATTACK_PRESETS = [
+    ("flamepiece", r"flamepiece|firewand"),
+    ("firebreath", r"breath"),
+    ("lightning", r"lightning|thunder|storm"),
+    ("fireball", r"\bnova\b|\brays?\b|annihilation: (light|implo)"),
+    ("arrow", r"\bbows?\b|longbow|crossbow|arrow|hawk|\bjess\b|sling"),
+    ("throwdagger", r"\bdarts?\b|\bneedles\b|chakram|discus|javelin|\bknives\b"),
+    ("greatsword", r"great ?sword|pole sword"),
+    ("glaive", r"glaive|halberd|volcano cutter|razor"),
+    ("spear", r"spear|lance|harpoon|needle"),
+    ("greatsaxe", r"military axe|cleaver|great ?axe"),
+    ("handaxe", r"\baxe\b|hatchet"),
+    ("goremaul", r"maul|hammer|tetsubo|titans|\bslam\b|greatclub"),
+    ("quarterstaff", r"staff|club|cudgel|baton|mace"),
+    ("scimitar", r"hook swords?|sabre|saber|scimitar|curved"),
+    ("rapier", r"rapier|\bfan\b|whip|chain"),
+    ("shortsword", r"short ?sword|knife|dagger|shiv"),
+    # Before sword: a "Bladed Proboscis" is a mouth, not a blade.
+    ("bite", r"bite|fang|teeth|proboscis|\bjaws?\b|\bhorn\b"),
+    ("claws", r"claw|talon|\bnails\b"),
+    ("sword", r"sword|daiklave|blade|skycutter|silver dream|gnomon|mirror"),
+    ("brawl", r"fist|kick|unarmed|cestus|gauntlet|grapple|embrace|caress"
+              r"|hands|vines|shield"),
+]
+ATTACK_PRESET_RES = [(preset, re.compile(pattern, re.I))
+                     for preset, pattern in ATTACK_PRESETS]
+
+
+def attack_effect_preset(name, weapontype, tags):
+    """The system attack animation that best fits a weapon."""
+    for preset, pattern in ATTACK_PRESET_RES:
+        if pattern.search(name):
+            return preset
+    tags = set(tags)
+    if "natural" in tags:
+        return "claws"
+    if weapontype == "ranged":
+        if "flame" in tags:
+            return "flamepiece"
+        return "throwdagger" if "thrown" in tags else "arrow"
+    if "smashing" in tags:
+        return "goremaul" if "twohanded" in tags else "quarterstaff"
+    if "chopping" in tags:
+        return "greatsaxe" if "twohanded" in tags else "handaxe"
+    if "piercing" in tags:
+        return "spear" if "reaching" in tags else "rapier"
+    if "reaching" in tags:
+        return "glaive"
+    if "twohanded" in tags:
+        return "greatsword"
+    if "concealable" in tags:
+        return "shortsword"
+    return "sword"
+
 
 def doc_id(name, book, page):
     key = "artifact:{}:{}:{}".format(book, page, name)
@@ -185,7 +244,9 @@ def build(entry):
             "overwhelming": overwhelming,
             "equipped": False,
             "weapontype": "ranged" if RANGED_RE.search(kind) else "melee",
-            "attackeffectpreset": "none",
+            "attackeffectpreset": attack_effect_preset(
+                entry["name"],
+                "ranged" if RANGED_RE.search(kind) else "melee", known),
             "attackeffect": "",
             "weight": category,
             "traits": {"weapontags": {"value": known,

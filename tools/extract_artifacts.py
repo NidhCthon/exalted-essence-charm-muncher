@@ -5,8 +5,8 @@ Each entry is regular enough to read by its labels:
     <name>                        set larger than the body
     <material and form>           the first body line under the name
     <description>
-    Type: Heavy Melee Weapon
-    Tags: Artifact, Melee, Reaching, Two-Handed
+    Type: <Light|Medium|Heavy> <Melee|Ranged> <Weapon|Armor>
+    Tags: <tag>, <tag>, ...
     Hearthstone slots: 2
     <what the artifact does>
 

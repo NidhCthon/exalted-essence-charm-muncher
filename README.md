@@ -45,6 +45,11 @@ are rated as the Merit that buys them: secondary for a lesser or standard
 stone, primary for a greater. The dice roller looks `rating` up to add Merit
 dice, so any other value there breaks the roll.
 
+Every weapon gets an attack animation preset, matched from its name and then
+its tags (a bow fires an arrow, a maul cracks the ground). The system plays it
+only with its "attack effects" setting on and the Sequencer and JB2A modules
+installed; players can change a weapon's preset on its sheet.
+
 ## Requirements
 
 - Python 3.10+, then `pip install -r requirements.txt`

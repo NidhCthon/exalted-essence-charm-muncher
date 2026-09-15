@@ -5,13 +5,13 @@ of armour in the ordinary sense - it is a machine you climb into, added by
 Pillars of Creation as a Merit. What it has instead is a chassis and a list
 of built-in weapons:
 
-    Cathedral of Sublime Annihilation
-    Orichalcum Warstrider
+    <name>
+    <material> Warstrider
     <description>
-    Heavy Chassis: 1 Defense, 4 Soak, 7 Hardness, 12 Health Levels
-    Implosion Bow: +0 Accuracy, +3 Damage, 3 Overwhelming. Artifact,
-    Powerful, Ranged, Smashing
-    Hearthstone slots: 4
+    <weight> Chassis: <n> Defense, <n> Soak, <n> Hardness, <n> Health Levels
+    <weapon name>: <n> Accuracy, <n> Damage, <n> Overwhelming. <tag>, <tag>
+    <weapon name>: ...
+    Hearthstone slots: <n>
 
 So the chassis becomes the armour and each built-in weapon its own weapon,
 with every number read from the page rather than derived.
@@ -41,7 +41,7 @@ CHASSIS_RE = re.compile(
 STAT_RE = re.compile(
     r"(\d+)\s*(Defense|Defence|Soak|Hardness|Health Levels)", re.I)
 SLOTS_RE = re.compile(r"Hearthstone\s+slots?\s*:\s*(\d+)", re.I)
-# "Implosion Bow: +0 Accuracy, +3 Damage, 3 Overwhelming. Artifact, Ranged".
+# "<weapon name>: <n> Accuracy, <n> Damage, <n> Overwhelming. <tags>".
 # Only the name and its colon are matched here; where one weapon ends is
 # where the next one's name begins, because a greedy tag list otherwise eats
 # the name after it and a greedy name eats the stat line before it.

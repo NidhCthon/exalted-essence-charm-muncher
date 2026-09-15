@@ -2,9 +2,8 @@
 
 The books give an antagonist's weapons as a run of text in its stat block:
 
-    Weapons: Bloodspike Spear (+1 Accuracy, +3 Damage, +2 Defense,
-    3 Overwhelming. Tags: Artifact, Piercing, Reaching), Glad-of-War Bow
-    (+2 Accuracy, +2 Damage, 2 Overwhelming. Tags: Artifact, Ranged)
+    Weapons: <name> (<n> Accuracy, <n> Damage, <n> Defense,
+    <n> Overwhelming. Tags: <tag>, <tag>), <name> (...)
 
 Every number the sheet wants is in there, so unlike an artifact nothing has
 to be derived - these are read, not computed. Embedding them is right here in
@@ -14,7 +13,7 @@ antagonist rather than matched to it by name.
 import hashlib
 import re
 
-from build_artifacts import WEAPON_TAGS, tag_key
+from build_artifacts import WEAPON_TAGS, attack_effect_preset, tag_key
 
 # "Name (+1 Accuracy, +3 Damage, ... Tags: a, b)". The name runs up to the
 # bracket; everything inside it is the statistics.
@@ -78,8 +77,8 @@ def parse_weapons(text):
                 (known if key in WEAPON_TAGS else custom).append(
                     key if key in WEAPON_TAGS else tag)
 
-        # Not every weapon is given a Tags clause. Where one is written
-        # "+2 Accuracy, +2 Damage, 2 Overwhelming, Long range", the range is
+        # Not every weapon is given a Tags clause. Where one is written as
+        # its stats followed by a range ("<n> Overwhelming, Long range"), the range is
         # the book saying it shoots, so read that rather than leaving a bow
         # filed as a melee weapon.
         ranged = bool(RANGE_RE.search(body))
@@ -114,7 +113,9 @@ def weapon_items(owner, text):
                 "overwhelming": weapon["stats"]["overwhelming"],
                 "equipped": True,
                 "weapontype": "ranged" if ranged else "melee",
-                "attackeffectpreset": "none",
+                "attackeffectpreset": attack_effect_preset(
+                    weapon["name"], "ranged" if ranged else "melee",
+                    weapon["tags"]),
                 "attackeffect": "",
                 "weight": "medium",
                 "traits": {"weapontags": {"value": weapon["tags"],

@@ -1,12 +1,9 @@
 """Map the mundane weapons onto Foundry `weapon` Items, plus the two armours.
 
 Statistics come from the equipment chapter's table for the weapon's
-category, the same table the artifact builder uses - without the artifact
-bonus, because these are not artifacts.
-
-    Light   accuracy +2  damage +0  defense +1  overwhelming 1
-    Medium  accuracy +1  damage +1  defense +1  overwhelming 1
-    Heavy   accuracy +0  damage +2  defense +1  overwhelming 1
+category, the same table the artifact builder uses (WEAPON_BASE in
+build_artifacts.py) - without the artifact bonus, because these are not
+artifacts.
 
 Tags need more care here than they did for artifacts. An artifact prints a
 plain list; an example weapon often prints a choice - "smashing, improvised,
@@ -26,7 +23,8 @@ import json
 import re
 from pathlib import Path
 
-from build_artifacts import WEAPON_BASE, WEAPON_TAGS, tag_key
+from build_artifacts import (WEAPON_BASE, WEAPON_TAGS, attack_effect_preset,
+                             tag_key)
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "data" / "equipment.raw.json"
@@ -134,7 +132,8 @@ def build(entry):
             "overwhelming": overwhelming,
             "equipped": False,
             "weapontype": entry["weapontype"],
-            "attackeffectpreset": "none",
+            "attackeffectpreset": attack_effect_preset(
+                entry["name"], entry["weapontype"], given),
             "attackeffect": "",
             "weight": entry["weight"],
             "traits": {"weapontags": {"value": given,

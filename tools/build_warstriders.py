@@ -14,7 +14,7 @@ import json
 import re
 from pathlib import Path
 
-from build_artifacts import WEAPON_TAGS, tag_key
+from build_artifacts import WEAPON_TAGS, attack_effect_preset, tag_key
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "data" / "warstriders.raw.json"
@@ -105,13 +105,14 @@ def build_weapon(entry, weapon):
     known, custom = read_tags(weapon["printed"].split(".", 1)[-1])
     # Thrown does not make it ranged; the melee tag settles it.
     ranged = "ranged" in known and "melee" not in known
+    name = "{}: {}".format(entry["name"], weapon["name"])
 
     return {
         "_id": identifier,
         "_key": "!items!{}".format(identifier),
         # Named for the machine it is bolted to, so a compendium list does
         # not show three unattributed ballistae.
-        "name": "{}: {}".format(entry["name"], weapon["name"]),
+        "name": name,
         "type": "weapon",
         "img": "icons/svg/sword.svg",
         "system": {
@@ -124,7 +125,8 @@ def build_weapon(entry, weapon):
             "overwhelming": stats["overwhelming"],
             "equipped": False,
             "weapontype": "ranged" if ranged else "melee",
-            "attackeffectpreset": "none",
+            "attackeffectpreset": attack_effect_preset(
+                name, "ranged" if ranged else "melee", known),
             "attackeffect": "",
             "weight": "heavy",
             "traits": {"weapontags": {"value": known,
