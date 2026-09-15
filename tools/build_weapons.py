@@ -18,6 +18,24 @@ from build_artifacts import WEAPON_TAGS, attack_effect_preset, tag_key
 # "Name (+1 Accuracy, +3 Damage, ... Tags: a, b)". The name runs up to the
 # bracket; everything inside it is the statistics.
 WEAPON_RE = re.compile(r"([^(),]{2,60}?)\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\)")
+# The draft manuscript once drops the opening bracket and prints a colon
+# instead: "Name: +3 Accuracy, ... Tags: a, b)". Only a colon followed by a
+# number and a closing bracket with no opening one before it is read as that,
+# and the bracket is put back so the weapon is found like any other. Not
+# inside a bracket that is already open: "(<weight>: <stats>; <weight>:
+# <stats>)" is one weapon's stats at two weights, not a weapon named for one.
+BRACKETLESS_RE = re.compile(
+    r"([^():;,.]{2,60}?)\s*:\s*([+-]?\d[^()]{0,200}?\))")
+
+
+def restore_bracket(match):
+    before = match.string[:match.start()]
+    if (before.count("(") != before.count(")")
+            or not WEAPON_STAT_RE.search(match.group(2))):
+        return match.group(0)
+    return "{} ({}".format(match.group(1), match.group(2))
+
+
 # Both orders are printed: "+1 Accuracy, 3 Overwhelming" and "Accuracy +1,
 # Overwhelming 3", sometimes mixed in one bracket. Matching left to right,
 # a number is taken by the word after it before the word in front of it, and
@@ -75,7 +93,7 @@ def item_id(owner, name, index):
 
 def parse_weapons(text):
     """Every weapon in a printed weapon line."""
-    text = text or ""
+    text = BRACKETLESS_RE.sub(restore_bracket, text or "")
     found = []
     for match in WEAPON_RE.finditer(text):
         body = match.group(2)

@@ -44,7 +44,7 @@ class Profile:
     """
 
     def __init__(self, name, stat, variant=(0.0, 0.0), banner=19.0,
-                 name_font=None, stat_font=None, max_pages=2):
+                 name_font=None, stat_font=None, max_pages=2, columns=2):
         self.name = name
         self.stat = stat
         self.variant = variant      # (0, 0) where a book has no variants
@@ -59,6 +59,12 @@ class Profile:
         # collection rather than a long entry. The published books are
         # compact; a draft manuscript runs an antagonist over several pages.
         self.max_pages = max_pages
+        # The published books are set in two columns. A draft manuscript is
+        # set in one, and there a full-width paragraph ends past the middle of
+        # the page and so read as the right column: it was taken after
+        # everything else on its page, which filed the last quality and the
+        # weapons of one antagonist into the stat block of the next.
+        self.columns = columns
 
     def classify(self, size, font):
         """"name", "stat" or None for this span."""
@@ -80,7 +86,8 @@ JUMPSTART = Profile(name=(13.6, 14.2), stat=(10.2, 11.2))
 # The Storyteller's Guide draft: names in Arial, stat blocks in Calibri, both
 # at the same size, with the prose in Times.
 DRAFT = Profile(name=(13.6, 14.2), stat=(13.6, 14.2), banner=17.0,
-                name_font="ArialMT", stat_font="Calibri", max_pages=5)
+                name_font="ArialMT", stat_font="Calibri", max_pages=5,
+                columns=1)
 
 # (book key, first page, last page, profile) - pages 1-indexed, inclusive.
 RANGES = [
@@ -144,7 +151,8 @@ FOOTER_RE = re.compile(r"CHAPTER [A-Z]+:|Mortals and Exalted|Gods and Monsters"
                        r"|Exalted Antagonists|Strange Beasts", re.I)
 
 
-def spans(doc, first, last, banner_min, with_font=False, with_layout=False):
+def spans(doc, first, last, banner_min, with_font=False, with_layout=False,
+          columns=2):
     """Every span in reading order: left column, then right, then next page.
 
     Except that a centred section banner straddles both columns and divides
@@ -157,6 +165,8 @@ def spans(doc, first, last, banner_min, with_font=False, with_layout=False):
     with_layout adds the font, the column (0 left, 1 right), the span's left
     edge and whether it starts a line, for extractors that find paragraphs
     by their first-line indent.
+
+    columns=1 reads a single-column page straight down. See Profile.columns.
     """
     for pno in range(first - 1, last):
         page = doc[pno]
@@ -168,7 +178,8 @@ def spans(doc, first, last, banner_min, with_font=False, with_layout=False):
             x0, y0, x1, _ = blk["bbox"]
             size = max((sp["size"] for line in blk.get("lines", [])
                         for sp in line.get("spans", [])), default=0.0)
-            units.append((0 if (x0 + x1) / 2 < mid else 1, y0, size, blk))
+            column = 0 if columns == 1 or (x0 + x1) / 2 < mid else 1
+            units.append((column, y0, size, blk))
 
         banners = sorted((u for u in units if u[2] >= banner_min),
                          key=lambda u: u[1])
@@ -408,7 +419,8 @@ def extract(doc, book, first, last, profile, dump=None):
         }
         entries.append(current)
 
-    stream = list(spans(doc, first, last, profile.banner, with_font=True))
+    stream = list(spans(doc, first, last, profile.banner, with_font=True,
+                        columns=profile.columns))
     for index, (page, size, text, font) in enumerate(stream):
         kind = profile.classify(size, font)
         if FOOTER_RE.search(text) and size < profile.name[0]:
