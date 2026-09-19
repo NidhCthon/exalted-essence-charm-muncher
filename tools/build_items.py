@@ -266,6 +266,15 @@ SOURCES = [
 PREREQUISITE_NAME_FIXES = {
     "ghostly sentinel technic": "Ghostly Sentinel Technique",
     "blood-and-glory exhoration": "Blood-and-Glory Exhortation",
+    # Spelled with an s in its own heading, without one where it is required.
+    "mind-cleaning exhalation": "Mind-Cleansing Exhalation",
+    # The only Dragon Vortex charm in the book; the prerequisite line calls it
+    # a Technique and its own heading an Attack.
+    "dragon vortex technique": "Dragon Vortex Attack",
+    # Named in full as "Arise and Slaughter", and shortened where required. A
+    # one-word name is too short for the rule below to match on, and the pack
+    # it is needed in has no other charm beginning with the word.
+    "arise": "Arise and Slaughter",
 }
 
 
@@ -287,6 +296,42 @@ def link_prerequisites(packs):
         # charm's own heading does, so match on the words alone.
         return re.sub(r"[^a-z0-9]", "", text.lower())
 
+    def rejoin(pills, index):
+        """Put back a charm whose own name has a comma in it.
+
+        "Open Palm, Closed Mind" is one charm, and the prerequisite line that
+        names it is read as two. Two pills in a row are rejoined only when the
+        result is a charm in this pack, so a line that really does name two
+        charms is left as it is.
+        """
+        out, i = [], 0
+        while i < len(pills):
+            if i + 1 < len(pills):
+                joined = "{}, {}".format(pills[i]["name"].strip(), pills[i + 1]["name"].strip())
+                if key(joined) in index:
+                    out.append({"name": joined})
+                    i += 2
+                    continue
+            out.append(pills[i])
+            i += 1
+        return out
+
+    def shortened(named, index):
+        """The one charm in this pack that a shortened name can only mean.
+
+        A prerequisite sometimes drops a word from the start or end of the
+        charm's own heading - "Monkey Tail Distraction" for "Flashing Monkey
+        Tail Distraction", "Sleeping Devil" for "Sleeping Devil, Wake!". It
+        only counts when exactly one charm in the pack matches, and never for a
+        single word, which is far too easy to match by accident.
+        """
+        if len(named.split()) < 2:
+            return None
+        k = key(named)
+        hits = [v for name_key, v in index.items()
+                if name_key != k and (name_key.startswith(k) or name_key.endswith(k))]
+        return hits[0] if len(hits) == 1 else None
+
     linked, dropped = 0, []
     for name, items in packs.items():
         index = {}
@@ -294,12 +339,12 @@ def link_prerequisites(packs):
             index.setdefault(key(item["name"]), (item["_id"], item["name"]))
 
         for item in items:
-            pills = item["system"].get("charmprerequisites") or []
+            pills = rejoin(item["system"].get("charmprerequisites") or [], index)
             resolved = []
             for pill in pills:
                 named = PREREQUISITE_NAME_FIXES.get(
                     pill["name"].strip().lower(), pill["name"])
-                found = index.get(key(named))
+                found = index.get(key(named)) or shortened(named, index)
                 if found and found[0] != item["_id"]:
                     # Labelled with the charm's own name rather than the
                     # spelling the prerequisite line used: the two differ in

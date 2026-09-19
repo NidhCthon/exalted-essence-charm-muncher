@@ -169,8 +169,11 @@ exiting successfully. If a pack imports as empty, check this first.
   at zero rather than guessed; the full text is in the description.
 - Charms whose only prerequisite is `Essence 3`, `None` or `Any Excellency` get
   `ability: other`, having no ability to parse.
-- `charmprerequisites` records prerequisite charms by name with a blank `id`,
-  so the system will not link them automatically.
+- Prerequisite charms are linked where the system can follow them: 192 of the
+  210 named. The system looks a prerequisite up in the charm's own pack, so one
+  naming a charm in another pack cannot be linked, and neither can one naming a
+  Merit or a requirement rather than a charm ("Any Excellency"). Those keep the
+  name in the prerequisites text instead of a pill that would error.
 - Cross-referenced charms appear once, under their primary entry.
 - Player's Guide content comes from a draft manuscript.
 
