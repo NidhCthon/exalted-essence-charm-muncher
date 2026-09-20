@@ -25,7 +25,7 @@ here, because this repository is public and the server is not:
     FOUNDRY_SERVICE      systemd unit to stop for --deploy
                          (default foundryvtt)
     FOUNDRY_APP_DIR      Foundry's install, read for its version before --deploy
-                         (default /opt/foundryvtt/resources/app)
+                         (default /opt/foundryvtt)
 
 --deploy refuses to run unless the server's Foundry is exactly CORE_VERSION
 and its system is exactly SYSTEM_VERSION, both from build_packs.py and both
@@ -158,7 +158,7 @@ def main():
 
     if args.deploy:
         check_versions(
-            ssh, setting("FOUNDRY_APP_DIR", "/opt/foundryvtt/resources/app"),
+            ssh, setting("FOUNDRY_APP_DIR", "/opt/foundryvtt"),
             data_dir, manifest)
 
     with tempfile.TemporaryDirectory() as workspace:

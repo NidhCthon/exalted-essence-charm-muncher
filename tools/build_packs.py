@@ -18,7 +18,7 @@ MODULE = ROOT / "module"
 CLI = ROOT / "node_modules" / "@foundryvtt" / "foundryvtt-cli" / "fvtt.mjs"
 
 MODULE_ID = "exalted-essence-charms"
-VERSION = "0.12.0"
+VERSION = "0.12.1"
 # Where the built module is served from for Foundry to install and update.
 # Loopback by default: see the note beside the manifest below.
 MODULE_HOST = os.environ.get("MODULE_HOST", "http://127.0.0.1:8088")
@@ -32,7 +32,7 @@ SYSTEM_ID = "exaltedessence"
 # startup after a deploy. These must match the server: a coreVersion newer
 # than the running Foundry makes it refuse to migrate the record at all.
 # Foundry's release version is "<generation>.<build>".
-CORE_VERSION = "14.365"
+CORE_VERSION = "14.368"
 SYSTEM_VERSION = "3.1.0"
 # Documents that can sit inside another in these packs.
 EMBEDDED_COLLECTIONS = ("items", "effects")
