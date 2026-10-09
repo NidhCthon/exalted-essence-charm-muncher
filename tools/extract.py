@@ -39,13 +39,16 @@ ALLCAPS = re.compile(rf"^[A-Z][{NAME_CHARS}]{{3,90}}$")
 WELDED_NAME = re.compile(rf"^(.*[a-z].*?:)\s*([A-Z][{NAME_CHARS}]{{3,90}})$", re.S)
 PREREQ = re.compile(r"^Prerequisites?:\s*(.*)$", re.I | re.S)
 FOOTER = re.compile(r"CHAPTER [A-Z]+:", re.I)
-XREF = re.compile(r"^See p\. ?\d", re.I)
+# "See p. 197." - or "See p. XX.", the unfilled placeholder the final Player's
+# Guide prints under every charm it lists a second time.
+XREF = re.compile(r"^See p\. ?(\d|XX)", re.I)
 TRAILING_PAGENO = re.compile(r"(\d{1,3})(?!.*\d)")
 DIGIT_RUN = re.compile(r"(\d+)(?!.*\d)")
 # The section name and page number printed at the head of a page, set twice
-# the way sidebars are: "ABYSSAL CHARMSABYSSAL CHARMS219219".
+# the way sidebars are: "ABYSSAL CHARMSABYSSAL CHARMS219219". The final
+# Player's Guide sets some in mixed case: "New charms277277".
 RUNNING_HEADER = re.compile(
-    r"^(?P<title>[A-Z][A-Z'’\- ]{3,}?)(?P=title)?(?P<page>\d{1,3})(?P=page)$")
+    r"^(?P<title>[A-Z][A-Z'’\- ]{3,}?)(?P=title)?(?P<page>\d{1,3})(?P=page)$", re.I)
 
 
 def clean(s: str) -> str:
@@ -300,6 +303,11 @@ def segment(stream):
                         continue
                     body.append(text_j)
                     j += 1
+                if not body:
+                    # A prerequisite with only a cross-reference under it lists
+                    # a charm printed elsewhere; it is not a charm of its own.
+                    i = j
+                    continue
                 charms.append({
                     "name": titlecase(text),
                     "section": section,
