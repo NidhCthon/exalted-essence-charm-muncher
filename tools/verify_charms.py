@@ -59,15 +59,17 @@ from extract import ALLCAPS, FOOTER, is_doubled
 from extract import FIRST_PAGE as CORE_FIRST, LAST_PAGE as CORE_LAST
 from extract_pg import CHAPTERS as PG_CHAPTERS
 from extract_pillars import FIRST_PAGE as PILLARS_FIRST, LAST_PAGE as PILLARS_LAST
+from extract_pg_final import FIRST_PAGE as PGFINAL_FIRST, LAST_PAGE as PGFINAL_LAST
 
 DATA = Path(__file__).resolve().parent.parent / "data"
-SOURCES = ["charms", "pillars", "playersguide"]
+SOURCES = ["charms", "pillars", "playersguide", "pgfinal"]
 # The page ranges each extractor reads, taken from the extractors themselves so
 # they cannot drift apart.
 PAGE_RANGES = {
     "charms": (CORE_FIRST, CORE_LAST),
     "pillars": (PILLARS_FIRST, PILLARS_LAST),
     "playersguide": (min(c[0] for c in PG_CHAPTERS), max(c[1] for c in PG_CHAPTERS)),
+    "pgfinal": (PGFINAL_FIRST, PGFINAL_LAST),
 }
 # Printed page numbers can sit a few pages off the PDF page index the ranges
 # use; a real page label is never further out than this.

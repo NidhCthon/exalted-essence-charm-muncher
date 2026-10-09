@@ -86,6 +86,15 @@ BOOKS = {
         # Apostrophe-free: the title on page 1 uses a curly apostrophe.
         anchor_text="Draft Manuscript",
     ),
+    "pgfinal": Book(
+        key="pgfinal",
+        title="Exalted Essence Player's Guide (2026 release)",
+        env_var="ESSENCE_PGFINAL_PDF",
+        page_count=314,
+        anchor_page=3,
+        # Page 1 is the cover image; the copyright line names the release year.
+        anchor_text="2026 PARADOX INTERACTIVE",
+    ),
     "tomb": Book(
         key="tomb",
         title="Tomb of Memory: An Exalted Essence Jumpstart",

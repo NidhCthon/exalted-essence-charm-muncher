@@ -27,11 +27,12 @@ FIRST_PAGE, LAST_PAGE = 186, 353  # 1-indexed inclusive: the charm chapter
 SECTION_MIN_SIZE = 18.0   # section titles render around 30pt
 NAME_SIZE = (10.5, 13.2)  # charm names: 12pt in most chapters, 10.9pt in Sorcery
 # Charm names are capitals, but not only letters: they carry commas, colons,
-# digits, parentheses and exclamation marks, and the longest run past sixty
+# digits, parentheses, exclamation and question marks ("WHO STRIKES THE
+# WIND?" in the final Player's Guide), and the longest run past sixty
 # characters. A name this rejects is read as body text, and its charm is
 # silently swallowed into the description of the one before it - which is what
 # tools/verify_charms.py exists to catch.
-NAME_CHARS = r"A-Z0-9'’\-— ,:!()"
+NAME_CHARS = r"A-Z0-9'’\-— ,:!?()"
 ALLCAPS = re.compile(rf"^[A-Z][{NAME_CHARS}]{{3,90}}$")
 # A name set straight after the end of a paragraph, with no break, arrives in
 # the same block as that paragraph: "...Evocation:NAME".
@@ -72,8 +73,33 @@ def dedupe_doubled(s: str) -> str:
     return s
 
 
-def printed_page(footer):
-    """The printed page number in a running footer, or None."""
+def dedupe_doubled_lines(s: str) -> str:
+    """A wrapped name set twice line by line; keep one copy of each line.
+
+    The final Player's Guide sets some two-line names this way, so the block
+    reads "BOUNDLESS ARROW BOUNDLESS ARROW OF THE UNCONQUERED SUNOF THE
+    UNCONQUERED SUN". Peel off the shortest piece (4+ characters) that repeats
+    straight away; only if the whole name comes apart like that is it doubled.
+    """
+    pieces, rest = [], s
+    while rest:
+        for size in range(4, len(rest) // 2 + 1):
+            head, after = rest[:size], rest[size:]
+            gap = 1 if after.startswith(" ") else 0
+            if after[gap:gap + size] == head:
+                pieces.append(head.strip())
+                rest = after[gap + size:].lstrip()
+                break
+        else:
+            return s
+    return " ".join(pieces)
+
+
+def printed_page(footer, expected=None):
+    """The printed page number in a running footer, or None.
+
+    expected is the PDF page the footer sits on, when the caller knows it.
+    """
     match = TRAILING_PAGENO.search(footer)
     if not match:
         return None
@@ -84,10 +110,18 @@ def printed_page(footer):
     run = DIGIT_RUN.search(footer)
     digits, label = run.group(1), footer[:run.start()].strip()
     half = len(digits) // 2
-    if (len(digits) % 2 == 0 and digits[:half] == digits[half:]
-            and dedupe_doubled(label) != label):
+    doubled = len(digits) % 2 == 0 and digits[:half] == digits[half:]
+    if doubled and dedupe_doubled(label) != label:
         return int(digits[:half])
-    return int(match.group(1))
+    value = int(match.group(1))
+    # The final Player's Guide doubles only the number: page 36 arrives as
+    # "...DRAGON-BLOODED3636" and reads as 636. Halve it only when that lands
+    # nearer the PDF page the footer sits on, so a genuine 55 is never 5.
+    if doubled and expected is not None:
+        halved = int(digits[:half])
+        if abs(halved - expected) < abs(value - expected):
+            return halved
+    return value
 
 
 def is_running_header(text, pno):
@@ -155,7 +189,7 @@ def build_stream(doc, first=FIRST_PAGE, last=LAST_PAGE):
         units = order_page(list(page_units(doc[pno])))
         for index, (_, _, size, text) in enumerate(units):
             if FOOTER.search(text):
-                number = printed_page(text)
+                number = printed_page(text, pno + 1)
                 if number is not None:
                     printed = number
                 continue
@@ -169,7 +203,7 @@ def build_stream(doc, first=FIRST_PAGE, last=LAST_PAGE):
                 text = dedupe_doubled(text)
             elif name_sized and ALLCAPS.match(text):
                 kind = "name"
-                text = dedupe_doubled(text)
+                text = dedupe_doubled_lines(dedupe_doubled(text))
             else:
                 kind = "body"
                 welded = WELDED_NAME.match(text) if name_sized else None
@@ -210,6 +244,29 @@ def titlecase(name: str) -> str:
     return out[0].upper() + out[1:]
 
 
+FLAVOUR_MAX = 200  # a one-line flavour sentence, not a paragraph
+
+
+def charm_start(stream, i):
+    """If the name at i opens a charm: (prerequisite match, lead lines, body start).
+
+    The usual layout is name, prerequisite, then flavour and mechanics. A few
+    charms in the final Player's Guide set their one-line flavour text above
+    the prerequisite instead, so one short line may sit between them.
+    """
+    def body(k):
+        return stream[k] if k < len(stream) and stream[k][0] == "body" else None
+
+    nxt = body(i + 1)
+    if nxt and PREREQ.match(nxt[1]):
+        return PREREQ.match(nxt[1]), [], i + 2
+    after = body(i + 2)
+    if (nxt and after and PREREQ.match(after[1]) and len(nxt[1]) <= FLAVOUR_MAX
+            and not XREF.match(nxt[1])):
+        return PREREQ.match(after[1]), [nxt[1]], i + 3
+    return None
+
+
 def segment(stream):
     """Split the stream into charm records, tracking the enclosing section."""
     charms, section, i = [], None, 0
@@ -220,17 +277,15 @@ def segment(stream):
             i += 1
             continue
         if kind == "name":
-            nxt = stream[i + 1] if i + 1 < len(stream) else ("", "", 0)
-            m = PREREQ.match(nxt[1]) if nxt[0] == "body" else None
-            if m:
-                body, j = [], i + 2
+            start = charm_start(stream, i)
+            if start:
+                m, body, j = start[0], list(start[1]), start[2]
                 while j < len(stream):
                     kind_j, text_j, _ = stream[j]
                     if kind_j == "section":
                         break
                     if kind_j == "name":
-                        after = stream[j + 1] if j + 1 < len(stream) else ("", "", 0)
-                        if after[0] == "body" and PREREQ.match(after[1]):
+                        if charm_start(stream, j):
                             break  # the next charm begins here
                         # A heading with no prerequisite is a sidebar floated
                         # into the column. Stepping over it rather than

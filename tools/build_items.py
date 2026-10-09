@@ -48,6 +48,9 @@ SECTION_TO_CHARMTYPE = {
     "Martial Arts: Scattered Lotus Petals": "martialarts",
     "Sidereal Martial Arts": "martialarts",
     "Warstriders": "evocation",
+    # Final Player's Guide. March Lords and God-Admirals are Exigents.
+    "March Lord Charms": "exigent",
+    "God-Admiral Charms": "exigent",
 }
 
 # Sections that share a pack with a differently-named section elsewhere.
