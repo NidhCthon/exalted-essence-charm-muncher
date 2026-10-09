@@ -23,6 +23,11 @@ EXTRACTORS = [
     ("extract_pillars.py", "pillars", "Pillars of Creation charms"),
     ("extract_sorcery_pillars.py", "pillars", "Pillars spells and shaping rituals"),
     ("extract_pg.py", "playersguide", "Player's Guide charms"),
+    # The final Player's Guide's charms, plus the modes and errata that
+    # build_items.py folds into core and Pillars charms (guide_extras.py). The
+    # packs still take the Player's Guide's own charms from the draft: the
+    # final's would give every one of them a new document id.
+    ("extract_pg_final.py", "pgfinal", "final Player's Guide charms, modes and errata"),
 ]
 BUILDERS = [
     ("build_items.py", "map charms to Foundry Items"),
@@ -56,6 +61,7 @@ ENV_VARS = {
     "core": "ESSENCE_CORE_PDF",
     "pillars": "ESSENCE_PILLARS_PDF",
     "playersguide": "ESSENCE_PLAYERSGUIDE_PDF",
+    "pgfinal": "ESSENCE_PGFINAL_PDF",
     "tomb": "ESSENCE_TOMB_PDF",
     # Antagonists only. Missing from here, the pack silently rebuilt at 68
     # actors instead of 132, dropping every Storyteller's Guide entry.

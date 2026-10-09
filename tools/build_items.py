@@ -220,7 +220,10 @@ def build(record):
             "active": False,
             "autoaddtorolls": "",
             "endtrigger": "none",
-            "cost": parse_cost(" ".join(record["body"])),
+            # The cost comes from the book's own text, not appended modes, and
+            # an erratum can restate it (both set by guide_extras.py).
+            "cost": dict(parse_cost(record.get("cost_text") or " ".join(record["body"])),
+                         **record.get("cost_override", {})),
             "gain": {"motes": 0, "anima": 0, "health": 0, "power": 0},
             "charmtype": charmtype,
             "ability": ability,
@@ -362,14 +365,27 @@ def link_prerequisites(packs):
 
 
 def main():
-    packs = {}
+    # Imported here: guide_extras reuses parse_cost from this module.
+    from guide_extras import fold
+
+    records = []
     for book, path in SOURCES:
         if not path.exists():
             print("skipping missing source: {}".format(path))
             continue
         for record in json.loads(path.read_text(encoding="utf-8")):
             record.setdefault("book", book)
-            packs.setdefault(pack_name(record["section"]), []).append(build(record))
+            records.append(record)
+
+    # The final Player's Guide's modes and errata name charms in the core book
+    # and Pillars; the draft Player's Guide's own charms are left as they are.
+    unplaced = fold([r for r in records if r["book"] in ("core", "pillars")])
+    print("Player's Guide modes/errata folded in; with no charm here: {}".format(
+        ", ".join(unplaced) or "none"))
+
+    packs = {}
+    for record in records:
+        packs.setdefault(pack_name(record["section"]), []).append(build(record))
 
     linked, dropped = link_prerequisites(packs)
     print("prerequisite pills linked : {}".format(linked))
