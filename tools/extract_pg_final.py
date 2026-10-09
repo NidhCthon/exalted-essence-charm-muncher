@@ -152,12 +152,19 @@ def references(stream, spans):
         if current is None:
             continue
         welded = WELDED_HEADING.search(text)
+        add(current, text[:welded.start()].rstrip() if welded else text)
         if welded:
-            current["body"].append(text[:welded.start()].rstrip())
             current, in_modes = None, in_modes or bool(GROUP.match(welded.group(1).strip()))
-            continue
-        current["body"].append(text)
     return entries
+
+
+def add(entry, text):
+    """Append a paragraph, or rejoin one a sidebar or column break split mid-sentence."""
+    body = entry["body"]
+    if body and text[:1].islower() and not body[-1].rstrip().endswith((".", "!", "?", ":")):
+        body[-1] = body[-1].rstrip() + " " + text
+    else:
+        body.append(text)
 
 
 def label_mode(entry):
