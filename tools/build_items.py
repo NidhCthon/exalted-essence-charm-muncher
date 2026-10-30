@@ -56,6 +56,10 @@ SECTION_TO_CHARMTYPE = {
 # Sections that share a pack with a differently-named section elsewhere.
 PACK_ALIASES = {
     "Dragon Blooded Charms": "dragon-blooded-charms",
+    # The final Player's Guide splits the draft's Exigent Charms in two; both
+    # stay in the pack the draft's were in.
+    "March Lord Charms": "exigent-charms",
+    "God-Admiral Charms": "exigent-charms",
     "Martial Arts: Scattered Lotus Petals": "martial-arts",
     "Warstriders": "evocations",
 }
@@ -203,8 +207,8 @@ def build(record):
     charmtype = SECTION_TO_CHARMTYPE.get(record["section"], "other")
     if ability is None:
         ability = "evocation" if charmtype == "evocation" else "other"
-    identifier = doc_id(record["name"], record.get("book"),
-                        record.get("section"), record.get("page"))
+    identifier = record.get("id") or doc_id(record["name"], record.get("book"),
+                                            record.get("section"), record.get("page"))
     return {
         "_id": identifier,
         # Foundry's CLI derives each LevelDB key from _key and silently skips
@@ -256,8 +260,37 @@ def pack_name(section):
 SOURCES = [
     ("core", SRC),
     ("pillars", ROOT / "data" / "pillars.raw.json"),
+    # The Player's Guide's charms come from the final book when it was
+    # supplied, and from the draft manuscript only when it was not.
+    ("pgfinal", ROOT / "data" / "pgfinal.raw.json"),
     ("playersguide", ROOT / "data" / "playersguide.raw.json"),
 ]
+DRAFT_IDS = Path(__file__).resolve().parent / "playersguide_ids.json"
+
+
+def keep_draft_ids(records):
+    """Give each final Player's Guide charm the id its draft charm had.
+
+    Matched on Exalt type and name, then on the name alone for a charm the
+    final moved to another type (freeze_playersguide_ids.py). A charm the
+    draft did not have, or one renamed since, keeps its own pgfinal id. Two
+    final charms never share a draft id: the second keeps its own.
+    """
+    from freeze_playersguide_ids import match_key
+    if not DRAFT_IDS.exists():
+        return 0, len(records)
+    draft = json.loads(DRAFT_IDS.read_text(encoding="utf-8"))
+    claimed, kept = set(), 0
+    for any_type in (False, True):
+        for record in sorted(records, key=lambda r: r["page"]):
+            if "id" in record:
+                continue
+            identifier = draft.get(match_key(record["section"], record["name"], any_type))
+            if identifier and identifier not in claimed:
+                record["id"] = identifier
+                claimed.add(identifier)
+                kept += 1
+    return kept, len(records) - kept
 
 
 # Two prerequisite lines spell a charm differently from that charm's own
@@ -377,8 +410,13 @@ def main():
             record.setdefault("book", book)
             records.append(record)
 
+    if any(r["book"] == "pgfinal" for r in records):
+        records = [r for r in records if r["book"] != "playersguide"]
+        kept, new = keep_draft_ids([r for r in records if r["book"] == "pgfinal"])
+        print("Player's Guide charms from the final book; draft ids kept: {}   new ids: {}".format(kept, new))
+
     # The final Player's Guide's modes and errata name charms in the core book
-    # and Pillars; the draft Player's Guide's own charms are left as they are.
+    # and Pillars; the Player's Guide's own charms are left as they are.
     unplaced = fold([r for r in records if r["book"] in ("core", "pillars")])
     print("Player's Guide modes/errata folded in; with no charm here: {}".format(
         ", ".join(unplaced) or "none"))

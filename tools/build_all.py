@@ -22,11 +22,13 @@ EXTRACTORS = [
     ("extract_sorcery.py", "core", "core spells and shaping rituals"),
     ("extract_pillars.py", "pillars", "Pillars of Creation charms"),
     ("extract_sorcery_pillars.py", "pillars", "Pillars spells and shaping rituals"),
+    # The draft's charms are used only when the final book is not supplied.
+    # The draft PDF is still read for its artifacts (extract_artifacts.py).
     ("extract_pg.py", "playersguide", "Player's Guide charms"),
-    # The final Player's Guide's charms, plus the modes and errata that
-    # build_items.py folds into core and Pillars charms (guide_extras.py). The
-    # packs still take the Player's Guide's own charms from the draft: the
-    # final's would give every one of them a new document id.
+    # The final Player's Guide's charms, which the packs use, plus the modes
+    # and errata that build_items.py folds into core and Pillars charms
+    # (guide_extras.py). Its charms keep the draft's document ids where the
+    # draft had them (freeze_playersguide_ids.py).
     ("extract_pg_final.py", "pgfinal", "final Player's Guide charms, modes and errata"),
 ]
 BUILDERS = [

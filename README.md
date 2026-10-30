@@ -63,12 +63,14 @@ installed; players can change a weapon's preset on its sheet.
 |---|---|---|
 | Exalted Essence (core) | 498 charms, 35 spells, 15 rituals, 10 merits | `ESSENCE_CORE_PDF` |
 | Pillars of Creation | 397 charms, 28 spells, 13 rituals, 1 merit | `ESSENCE_PILLARS_PDF` |
-| Player's Guide (draft manuscript) | 879 charms, no sorcery | `ESSENCE_PLAYERSGUIDE_PDF` |
+| Player's Guide (2026 release) | 874 charms, plus modes and errata for core and Pillars charms | `ESSENCE_PGFINAL_PDF` |
+| Player's Guide (draft manuscript) | artifacts; its 879 charms only without the release | `ESSENCE_PLAYERSGUIDE_PDF` |
 | Tomb of Memory (jumpstart) | antagonists, hearthstones | `ESSENCE_TOMB_PDF` |
 | Storyteller's Guide (draft preview) | 64 antagonists | `ESSENCE_STG_PDF` |
 
-Books are optional — supply only what you own. The Player's Guide entry is the
-**draft manuscript**, whose charms may not match the published book.
+Books are optional — supply only what you own. The Player's Guide's charms come
+from the 2026 release when it is supplied, and from the **draft manuscript**
+only when it is not. The draft is still read for its artifacts.
 
 ## Usage
 
@@ -77,7 +79,7 @@ python tools/build_all.py --core "/path/to/Exalted_Essence.pdf"
 ```
 
 Or set the environment variables and run it bare. Add `--pillars`,
-`--playersguide`, `--tomb` and `--stg` for the supplements. Individual stages can be run alone; each
+`--pgfinal`, `--playersguide`, `--tomb` and `--stg` for the supplements. Individual stages can be run alone; each
 takes `--pdf`.
 
 The result is a `module/` directory. Copy it into your Foundry data directory
@@ -157,7 +159,14 @@ and what they mark is kept.
 **Document `_id`s derive from the charm name**, so rebuilding and re-importing
 updates existing entries rather than duplicating them. Supplement ids are
 namespaced by book, section and page: names are not unique across books, and
-the Player's Guide repeats six of them inside a single section.
+the draft Player's Guide repeats six of them inside a single section.
+
+**The Player's Guide's charms keep the ids the draft gave them.** The 2026
+release moved every page, so its charms would otherwise all get new ids and
+a world that imported draft charms would find none of them in the pack.
+`tools/playersguide_ids.json` maps each draft charm's Exalt type and name,
+hashed, to its draft id; it holds no book text. A charm the draft did not
+have, or one renamed since, gets a new id.
 
 **Every document needs `_key`.** Foundry's CLI derives the LevelDB key from it
 and silently skips documents that lack it, writing an empty pack while still
@@ -175,7 +184,7 @@ exiting successfully. If a pack imports as empty, check this first.
   Merit or a requirement rather than a charm ("Any Excellency"). Those keep the
   name in the prerequisites text instead of a pill that would error.
 - Cross-referenced charms appear once, under their primary entry.
-- Player's Guide content comes from a draft manuscript.
+- Player's Guide artifacts come from the draft manuscript.
 
 ## Verifying an extraction
 
@@ -248,7 +257,11 @@ tools/
   extract_pillars.py  Pillars of Creation charms (reuses the core extractor)
   extract_sorcery_pillars.py
                       Pillars spells and shaping rituals
-  extract_pg.py       Player's Guide (single-column manuscript)
+  extract_pg.py       Player's Guide draft (single-column manuscript)
+  extract_pg_final.py Player's Guide 2026 release: charms, modes, errata
+  guide_extras.py     folds those modes and errata into the charms they name
+  freeze_playersguide_ids.py
+                      records the draft's charm ids (playersguide_ids.json)
   build_items.py      charms  -> Foundry Item documents
   build_sorcery.py    spells and rituals -> Foundry Item documents
   build_packs.py      documents -> LevelDB packs, and module.json
