@@ -33,7 +33,7 @@ SYSTEM_ID = "exaltedessence"
 # than the running Foundry makes it refuse to migrate the record at all.
 # Foundry's release version is "<generation>.<build>".
 CORE_VERSION = "14.368"
-SYSTEM_VERSION = "3.1.0"
+SYSTEM_VERSION = "3.1.1"
 # Documents that can sit inside another in these packs.
 EMBEDDED_COLLECTIONS = ("items", "effects")
 
